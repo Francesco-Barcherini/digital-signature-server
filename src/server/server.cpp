@@ -14,4 +14,7 @@ using namespace std;
 int main()
 {
     testSign();
+    test_ffdhe2048_key_exchange();
+    test_aes256gcm_encrypt_decrypt();
+
 }

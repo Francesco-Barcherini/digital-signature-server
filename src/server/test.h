@@ -9,3 +9,5 @@
 #include "../common/common.h"
 
 void testSign();
+void test_ffdhe2048_key_exchange();
+void test_aes256gcm_encrypt_decrypt();
