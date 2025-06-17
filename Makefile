@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -Wall -Wextra -I./main/common -I./main/client -I./main/server
+CFLAGS = -lcrypto -Wall  -Wextra -I./main/common -I./main/client -I./main/server
 OUT_DIR = out
 
 # Sources
