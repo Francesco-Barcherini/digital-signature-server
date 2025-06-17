@@ -28,20 +28,33 @@ void error(const char *msg)
     throw std::runtime_error(msg);
 }
 
-void readPEMPrivateKey(string filename, EVP_PKEY **pkey)
+void readPEMPrivateKey(string filename, EVP_PKEY **privkey)
 {
     FILE *file = fopen(filename.c_str(), "r");
     if (!file) error("Failed to open PEM file");
 
-    *pkey = PEM_read_PrivateKey(file, NULL, NULL, NULL);
+    *privkey = PEM_read_PrivateKey(file, NULL, NULL, NULL);
     fclose(file);
 
-    if (!*pkey) error("Failed to read private key from PEM file");
+    if (!*privkey) error("Failed to read private key from PEM file");
 
     return;
 }
 
-void signRsaSha256(byte_vec &signature, const byte_vec &data, EVP_PKEY* pkey)
+void readPEMPublicKey(string filename, EVP_PKEY **pubkey)
+{
+    FILE *file = fopen(filename.c_str(), "r");
+    if (!file) error("Failed to open PEM file");
+
+    *pubkey = PEM_read_PUBKEY(file, NULL, NULL, NULL);
+    fclose(file);
+
+    if (!*pubkey) error("Failed to read public key from PEM file");
+
+    return;
+}
+
+void signRsaSha256(byte_vec &signature, const byte_vec &data, EVP_PKEY* privkey)
 {
     // Create the context for signing
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
@@ -50,7 +63,7 @@ void signRsaSha256(byte_vec &signature, const byte_vec &data, EVP_PKEY* pkey)
         error("Failed to create EVP_MD_CTX");
     }
 
-    if (EVP_DigestSignInit(ctx, nullptr, EVP_sha256(), nullptr, pkey) <= 0)
+    if (EVP_DigestSignInit(ctx, nullptr, EVP_sha256(), nullptr, privkey) <= 0)
     {
         EVP_MD_CTX_free(ctx);
         error("EVP_DigestSignInit failed");
@@ -85,6 +98,40 @@ void signRsaSha256(byte_vec &signature, const byte_vec &data, EVP_PKEY* pkey)
 
     return;
 }
+
+bool verifyRsaSha256(const byte_vec &data, const byte_vec &signature, EVP_PKEY *pubkey)
+{
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    if (!ctx) error("Failed to create EVP_MD_CTX for verification");
+
+    if (EVP_DigestVerifyInit(ctx, nullptr, EVP_sha256(), nullptr, pubkey) <= 0)
+    {
+        EVP_MD_CTX_free(ctx);
+        error("EVP_DigestVerifyInit failed");
+    }
+
+    if (EVP_DigestVerifyUpdate(ctx, data.data(), data.size()) <= 0)
+    {
+        EVP_MD_CTX_free(ctx);
+        error("EVP_DigestVerifyUpdate failed");
+    }
+
+    int ret = EVP_DigestVerifyFinal(ctx, signature.data(), signature.size());
+    EVP_MD_CTX_free(ctx);
+
+    if (ret == 1)
+    {
+        return true; // Signature is valid
+    }
+    else if (ret == 0)
+    {
+        return false; // Signature is invalid
+    }
+    else error("EVP_DigestVerifyFinal failed");
+
+    return false;
+}
+
 
 logLevel log_level = DEBUG;
 

@@ -1,18 +1,18 @@
 CC = g++
-CFLAGS = -lcrypto -Wall -Wextra -I./src/common -I./src/client -I./src/server
+CFLAGS = -lcrypto -Wall -Wextra -MMD -MP -I./src/common -I./src/client -I./src/server
 
 OUT_DIR = out
 BUILD_DIR = build
 
-# Sources
-COMMON_SRC = src/common/common.cpp
-SERVER_SRC = src/server/server.cpp
-CLIENT_SRC = src/client/client.cpp
+# Automatically collect source files
+COMMON_SRC = $(wildcard src/common/*.cpp)
+CLIENT_SRC = $(wildcard src/client/*.cpp)
+SERVER_SRC = $(wildcard src/server/*.cpp)
 
-# Object files (in build directory)
-COMMON_OBJ = $(BUILD_DIR)/common.o
-SERVER_OBJ = $(BUILD_DIR)/server.o
-CLIENT_OBJ = $(BUILD_DIR)/client.o
+# Object files
+COMMON_OBJ = $(patsubst src/common/%.cpp, $(BUILD_DIR)/common_%.o, $(COMMON_SRC))
+CLIENT_OBJ = $(patsubst src/client/%.cpp, $(BUILD_DIR)/client_%.o, $(CLIENT_SRC))
+SERVER_OBJ = $(patsubst src/server/%.cpp, $(BUILD_DIR)/server_%.o, $(SERVER_SRC))
 
 # Targets
 SERVER_BIN = $(OUT_DIR)/server
@@ -26,14 +26,16 @@ all: $(SERVER_BIN) $(CLIENT_BIN)
 $(OUT_DIR) $(BUILD_DIR):
 	mkdir -p $@
 
-# Compile object files
-$(COMMON_OBJ): $(COMMON_SRC) src/common/common.h | $(BUILD_DIR)
+# Compile common
+$(BUILD_DIR)/common_%.o: src/common/%.cpp | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(SERVER_OBJ): $(SERVER_SRC) src/server/server.h src/common/common.h | $(BUILD_DIR)
+# Compile client
+$(BUILD_DIR)/client_%.o: src/client/%.cpp | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(CLIENT_OBJ): $(CLIENT_SRC) src/client/client.h src/common/common.h | $(BUILD_DIR)
+# Compile server
+$(BUILD_DIR)/server_%.o: src/server/%.cpp | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Link binaries
@@ -43,5 +45,10 @@ $(SERVER_BIN): $(COMMON_OBJ) $(SERVER_OBJ) | $(OUT_DIR)
 $(CLIENT_BIN): $(COMMON_OBJ) $(CLIENT_OBJ) | $(OUT_DIR)
 	$(CC) $(CFLAGS) $^ -o $@
 
+# Include dependency files if they exist
+-include $(COMMON_OBJ:.o=.d) $(CLIENT_OBJ:.o=.d) $(SERVER_OBJ:.o=.d)
+
+
 clean:
 	rm -rf $(OUT_DIR) $(BUILD_DIR)
+
