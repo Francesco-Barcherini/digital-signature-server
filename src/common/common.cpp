@@ -19,9 +19,6 @@
 
 using namespace std;
 
-// void sendSocket(int sock, const byte_vec& data) {
-// }
-
 using byte_vec = std::vector<unsigned char>;
 
 void error(const char *msg)
@@ -380,5 +377,6 @@ void LOG(logLevel level, const char *format, ...)
     strftime(buf, sizeof(buf), "%Y-%m-%d %X", &tstruct);
     printf("%s[%s] [%s]%s ", level_colors[level], buf, level_names[level], COLOR_RESET);
     vprintf(format, args);
+    printf("\n");
     va_end(args);
 }

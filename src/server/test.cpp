@@ -15,7 +15,7 @@ using namespace std;
 
 void testSign()
 {
-    printf("\nTesting RSA-SHA256 signing and verification...\n\n");
+    LOG(INFO,"Testing RSA-SHA256 signing and verification...");
     string path_to_private_key = "./server_priv.pem"; // Path to your PEM file containing the private key
     string path_to_public_key = "./server_pub.pem"; // Path to your PEM file containing the public key
 
@@ -34,26 +34,21 @@ void testSign()
     signRsaSha256(signature, data, private_key);
 
     // Print signature in hex
-    cout << "Signature (" << signature.size() << " bytes): ";
-    for (unsigned char c : signature) {
-        cout << hex << setw(2) << setfill('0') << (int)c;
-    }
-    cout << endl;
 
     bool ver= verifyRsaSha256(data, signature, public_key);
 
     if (ver) {
-        cout << "Signature verification succeeded." << endl;
+        LOG(INFO, "Signature verification succeeded");
     } else {
-        cout << "Signature verification failed." << endl;
+        LOG(ERROR, "Signature verification failed");
     }
 
     signature[0] ^= 0xFF; // Modify the data to test verification failure
     ver = verifyRsaSha256(data, signature, public_key);
     if (ver) {
-        cout << "Signature verification succeeded after modification (unexpected)." << endl;
+        LOG(ERROR, "Signature verification succeeded after modification (unexpected)");
     } else {
-        cout << "Signature verification failed after modification as expected." << endl;
+        LOG(INFO, "Signature verification failed after modification (expected)");
     }
 
 }
@@ -62,7 +57,7 @@ void testSign()
 
 void test_ffdhe2048_key_exchange()
 {
-    printf("\nTesting FFDHE2048 key exchange...\n\n");
+    LOG(INFO,"Testing FFDHE2048 key exchange...");
     // Generate your keys
     byte_vec my_pubkey;
     EVP_PKEY* my_keypair = nullptr;
@@ -88,18 +83,17 @@ void test_ffdhe2048_key_exchange()
     // Both shared secrets must match
     if (shared_secret_1 == shared_secret_2)
     {
-        std::cout << "Test passed! Shared secrets match.\n";
+        LOG(INFO, "Shared secrets match!");
     }
     else
     {
-        std::cerr << "Test failed! Shared secrets do NOT match.\n";
-        assert(false);
+        LOG(ERROR, "Shared secrets do NOT match!");
     }
 }
 
 void test_aes256gcm_encrypt_decrypt()
 {
-    printf("\nTesting AES-256-GCM encryption and decryption...\n\n");
+    LOG(INFO,"Testing AES-256-GCM encryption and decryption...");
     // Sample plaintext
     byte_vec plaintext = { 'T','h','i','s',' ','i','s',' ','a',' ','t','e','s','t','!' };
 
@@ -123,9 +117,9 @@ void test_aes256gcm_encrypt_decrypt()
         aes256gcm_decrypt(ciphertext, key, iv, tag, decrypted);
 
         if (decrypted == plaintext)
-            std::cout << "AES-256-GCM test passed: Decrypted text matches plaintext.\n";
+            LOG(INFO, "AES-256-GCM test passed: Decrypted text matches plaintext");
         else
-            std::cerr << "AES-256-GCM test failed: Decrypted text DOES NOT match plaintext.\n";
+            LOG(ERROR, "AES-256-GCM test failed: Decrypted text does NOT match plaintext");
     }
     catch (const std::exception &e)
     {
