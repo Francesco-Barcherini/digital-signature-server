@@ -51,4 +51,10 @@ void readPEMPublicKey(string filename, EVP_PKEY **pubkey);
 void signRsaSha256(byte_vec &signature, const byte_vec &data, EVP_PKEY *pkey);
 bool verifyRsaSha256(const byte_vec &data, const byte_vec &signature, EVP_PKEY *pkey);
 
+
+
+bool derive_shared_secret_and_key(EVP_PKEY *my_privkey,
+                          EVP_PKEY *peer_pubkey,
+                          byte_vec &shared_secret, byte_vec &symmetric_key);
+
 void LOG(logLevel level, const char *format, ...);

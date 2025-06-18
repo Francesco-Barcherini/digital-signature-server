@@ -145,3 +145,103 @@ bool recv_secure_message(int sockfd,
     last_received_counter = msg_counter;
     return true;
 }
+
+bool init_secure_conversation_client(int sockfd,
+                                     EVP_PKEY *server_rsa_pub,
+                                     byte_vec &shared_key)
+{
+    LOG(DEBUG, "Initializing secure conversation with server");
+    // 1. Generate client's DH key pair and send public key
+    byte_vec my_pub_dh_msg;
+    EVP_PKEY *my_dh_keypair = nullptr;
+    ffdhe2048GenMsgAndKeys(my_pub_dh_msg, my_dh_keypair);
+    if (!send_message(sockfd, my_pub_dh_msg))
+        error("Failed to send client DH public key");
+    LOG(DEBUG, "Sent client DH public key (%zu bytes)", my_pub_dh_msg.size());
+
+    // 2. Receive server's DH public key
+    byte_vec server_pub_dh_msg;
+    if (!recv_message(sockfd, server_pub_dh_msg))
+        error("Failed to receive server DH public key");
+    LOG(DEBUG, "Received server DH public key (%zu bytes)", server_pub_dh_msg.size());
+
+    // 3. Receive signature over both pubkeys (order: client_pub || server_pub)
+    byte_vec signature;
+    if (!recv_message(sockfd, signature))
+        error("Failed to receive server signature");
+    LOG(DEBUG, "Received server signature (%zu bytes)", signature.size());
+
+    // 4. Verify signature
+    byte_vec signed_data = my_pub_dh_msg; // concat(client_pub || server_pub)
+    signed_data.insert(signed_data.end(), server_pub_dh_msg.begin(), server_pub_dh_msg.end());
+
+    if (!verifyRsaSha256(signed_data, signature, server_rsa_pub))
+        error("Server signature verification failed");
+    LOG(DEBUG, "Server signature verified successfully");
+
+    // 5. Decode server DH pubkey and compute shared secret
+    const unsigned char *p = server_pub_dh_msg.data();
+    EVP_PKEY *server_dh_pubkey = d2i_PUBKEY(NULL, &p, server_pub_dh_msg.size());
+    if (!server_dh_pubkey)
+        error("Failed to parse server DH public key");
+    LOG(DEBUG, "Parsed server DH public key successfully");
+
+    byte_vec shared_secret;
+
+    if (!derive_shared_secret_and_key(my_dh_keypair, server_dh_pubkey,shared_secret, shared_key))
+    {
+        EVP_PKEY_free(server_dh_pubkey);
+        error("Shared key derivation failed");
+    }
+    LOG(DEBUG, "Derived shared secret successfully");
+
+    EVP_PKEY_free(server_dh_pubkey);
+    return true;
+}
+
+
+bool init_secure_conversation_server(int sockfd,
+                                     EVP_PKEY *server_rsa_priv,
+                                     byte_vec &shared_key)
+{
+    LOG(INFO, "Initializing secure conversation with client");
+    // 1. Receive client's DH public key
+    byte_vec client_pub_dh_msg;
+    if (!recv_message(sockfd, client_pub_dh_msg))
+        error("Failed to receive client DH public key");
+
+    // 2. Generate server's DH key pair and encode public key
+    byte_vec my_pub_dh_msg;
+    EVP_PKEY *my_dh_keypair = nullptr;
+    ffdhe2048GenMsgAndKeys(my_pub_dh_msg, my_dh_keypair);
+
+    // 3. Create signature over (client_pub || server_pub)
+    byte_vec signed_data = client_pub_dh_msg;
+    signed_data.insert(signed_data.end(), my_pub_dh_msg.begin(), my_pub_dh_msg.end());
+
+    byte_vec signature;
+    signRsaSha256(signature, signed_data, server_rsa_priv);
+
+    // 4. Send server's DH public key and the signature
+    if (!send_message(sockfd, my_pub_dh_msg))
+        error("Failed to send server DH public key");
+
+    if (!send_message(sockfd, signature))
+        error("Failed to send server signature");
+
+    // 5. Decode client DH public key
+    const unsigned char *p = client_pub_dh_msg.data();
+    EVP_PKEY *client_dh_pubkey = d2i_PUBKEY(nullptr, &p, client_pub_dh_msg.size());
+    if (!client_dh_pubkey)
+        error("Failed to parse client DH public key");
+
+    byte_vec shared_secret;
+    if (!derive_shared_secret_and_key(my_dh_keypair, client_dh_pubkey, shared_secret, shared_key))
+    {
+        EVP_PKEY_free(client_dh_pubkey);
+        error("Shared key derivation failed");
+    }
+
+    EVP_PKEY_free(client_dh_pubkey);
+    return true;
+}

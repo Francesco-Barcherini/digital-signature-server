@@ -12,6 +12,7 @@
 #include <openssl/pem.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
+#include <openssl/kdf.h>
 #include <vector>
 #include <stdexcept>
 
@@ -33,7 +34,7 @@ void genRandomBytes(byte_vec &data, size_t size)
         error("Failed to generate random bytes");
 }
 
-void ffdhe2048GenMsgAndKeys(byte_vec &public_msg, EVP_PKEY* &keypair)
+void ffdhe2048GenMsgAndKeys(byte_vec &public_msg, EVP_PKEY *&keypair)
 {
     EVP_PKEY *dh_params = NULL;
     EVP_PKEY_CTX *param_ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DH, NULL);
@@ -78,7 +79,7 @@ void ffdhe2048GenMsgAndKeys(byte_vec &public_msg, EVP_PKEY* &keypair)
  * Given a peer's DER-encoded DH public key (`peer_pubkey_msg`) and your private key (`privkey`),
  * compute the shared secret and return it in `shared_secret`.
  */
-void ffdhe2048ComputeSharedSecret(const byte_vec &peer_pubkey_msg, EVP_PKEY* privkey, byte_vec &shared_secret)
+void ffdhe2048ComputeSharedSecret(const byte_vec &peer_pubkey_msg, EVP_PKEY *privkey, byte_vec &shared_secret)
 {
     const unsigned char *p = peer_pubkey_msg.data();
 
@@ -130,12 +131,11 @@ void ffdhe2048ComputeSharedSecret(const byte_vec &peer_pubkey_msg, EVP_PKEY* pri
     EVP_PKEY_CTX_free(derive_ctx);
 }
 
-
-void aes256gcm_encrypt(const byte_vec &plaintext, 
-                      const byte_vec &key,
-                      byte_vec &iv,
-                      byte_vec &ciphertext,
-                      byte_vec &tag)
+void aes256gcm_encrypt(const byte_vec &plaintext,
+                       const byte_vec &key,
+                       byte_vec &iv,
+                       byte_vec &ciphertext,
+                       byte_vec &tag)
 {
     if (key.size() != 32)
         error("Key must be 32 bytes for AES-256-GCM");
@@ -191,10 +191,10 @@ void aes256gcm_encrypt(const byte_vec &plaintext,
  * @param plaintext Output decrypted data.
  */
 void aes256gcm_decrypt(const byte_vec &ciphertext,
-                      const byte_vec &key,
-                      const byte_vec &iv,
-                      const byte_vec &tag,
-                      byte_vec &plaintext)
+                       const byte_vec &key,
+                       const byte_vec &iv,
+                       const byte_vec &tag,
+                       byte_vec &plaintext)
 {
     if (key.size() != 32)
         error("Key must be 32 bytes for AES-256-GCM");
@@ -220,7 +220,7 @@ void aes256gcm_decrypt(const byte_vec &ciphertext,
 
     int plaintext_len = len;
 
-    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, (int)tag.size(), (void*)tag.data()) != 1)
+    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, (int)tag.size(), (void *)tag.data()) != 1)
         error("EVP_CIPHER_CTX_ctrl set tag failed");
 
     // Finalize decryption: returns 1 if tag verification succeeds
@@ -233,10 +233,6 @@ void aes256gcm_decrypt(const byte_vec &ciphertext,
     plaintext_len += len;
     plaintext.resize(plaintext_len);
 }
-
-
-
-
 
 void readPEMPrivateKey(string filename, EVP_PKEY **privkey)
 {
@@ -379,4 +375,70 @@ void LOG(logLevel level, const char *format, ...)
     vprintf(format, args);
     printf("\n");
     va_end(args);
+}
+
+// TODO usare due chiavi simmetriche??#include <openssl/kdf.h> // For HKDF
+
+bool derive_shared_secret_and_key(EVP_PKEY *my_privkey,
+                                  EVP_PKEY *peer_pubkey,
+                                  byte_vec &shared_secret,
+                                  byte_vec &symmetric_key)
+{
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(my_privkey, nullptr);
+    if (!ctx)
+        error("Failed to create EVP_PKEY_CTX for shared secret derivation");
+
+    if (EVP_PKEY_derive_init(ctx) <= 0 ||
+        EVP_PKEY_derive_set_peer(ctx, peer_pubkey) <= 0)
+    {
+        EVP_PKEY_CTX_free(ctx);
+        error("EVP_PKEY_derive init/set_peer failed");
+    }
+
+    size_t secret_len = 0;
+    if (EVP_PKEY_derive(ctx, nullptr, &secret_len) <= 0)
+    {
+        EVP_PKEY_CTX_free(ctx);
+        error("EVP_PKEY_derive (get length) failed");
+    }
+
+    shared_secret.resize(secret_len);
+    if (EVP_PKEY_derive(ctx, shared_secret.data(), &secret_len) <= 0)
+    {
+        EVP_PKEY_CTX_free(ctx);
+        error("EVP_PKEY_derive (compute secret) failed");
+    }
+    shared_secret.resize(secret_len);
+    EVP_PKEY_CTX_free(ctx);
+
+    // Derive a 32-byte symmetric key using HKDF with SHA256
+    EVP_PKEY_CTX *kctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
+    if (!kctx)
+        error("Failed to create HKDF context");
+
+    if (EVP_PKEY_derive_init(kctx) <= 0 ||
+        EVP_PKEY_CTX_set_hkdf_mode(kctx, EVP_PKEY_HKDEF_MODE_EXTRACT_AND_EXPAND) <= 0 ||
+        EVP_PKEY_CTX_set_hkdf_md(kctx, EVP_sha256()) <= 0 ||
+        EVP_PKEY_CTX_set1_hkdf_salt(kctx, nullptr, 0) <= 0 || // Optional: add salt
+        EVP_PKEY_CTX_set1_hkdf_key(kctx, shared_secret.data(), shared_secret.size()) <= 0 ||
+        EVP_PKEY_CTX_add1_hkdf_info(
+            kctx,
+            reinterpret_cast<const unsigned char *>("ffdhe2048 handshake"),
+            strlen("ffdhe2048 handshake")) <= 0)
+    {
+        EVP_PKEY_CTX_free(kctx);
+        error("HKDF parameter setup failed");
+    }
+
+    symmetric_key.resize(32); // AES-256 key size
+    size_t len = 32;
+    if (EVP_PKEY_derive(kctx, symmetric_key.data(), &len) <= 0)
+    {
+        EVP_PKEY_CTX_free(kctx);
+        error("HKDF derive failed");
+    }
+
+    symmetric_key.resize(len);
+    EVP_PKEY_CTX_free(kctx);
+    return true;
 }

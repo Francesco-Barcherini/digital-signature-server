@@ -24,7 +24,15 @@ void test()
 
 void client_handler(int client_fd)
 {
-    printf("[*] Client handler started for fd=%d\n", client_fd);
+    LOG(INFO, "Client handler started for fd=%d", client_fd);
+
+    string path_to_private_key = "./server_priv.pem"; // Path to your PEM file containing the private key
+
+    EVP_PKEY* server_rsa_priv = nullptr;
+    readPEMPrivateKey(path_to_private_key, &server_rsa_priv);
+
+    byte_vec shared_key(32); // Use a fixed AES key for now (should be negotiated or derived per session)
+    init_secure_conversation_server(client_fd, server_rsa_priv, shared_key);
 }
 
 
@@ -56,7 +64,7 @@ void start_server(uint16_t port)
         return;
     }
 
-    LOG(INFO, "Server listening on port %d\n", port);
+    LOG(INFO, "Server listening on port %d", port);
 
     // Use fixed AES key for now (should be negotiated or derived per session)
     byte_vec shared_key(32);
@@ -70,7 +78,7 @@ void start_server(uint16_t port)
             continue;
         }
 
-        std::cout << "[+] Client connected: fd=" << client_fd << "\n";
+        LOG(INFO, "Client connected: fd=%d", client_fd);
 
         // Launch a thread to handle the client
         std::thread(client_handler, client_fd).detach();
