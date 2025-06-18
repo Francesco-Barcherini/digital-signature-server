@@ -30,19 +30,42 @@ int connect_to_server(const std::string &host, uint16_t port)
     return sockfd;
 }
 
-int main()
+byte_vec shared_key(32);
+uint64_t counter = 1000;
+int sockfd;
+void client_init_connection()
 {
-    int sockfd = connect_to_server("127.0.0.1", 1234);
+    sockfd = connect_to_server("127.0.0.1", 1234);
 
     string path_to_public_key = "./server_pub.pem";
 
     EVP_PKEY *server_rsa_pub = nullptr;
     readPEMPublicKey(path_to_public_key, &server_rsa_pub);
 
-    byte_vec shared_key(32); // Use a fixed AES key for now (should be negotiated or derived per session)
     init_secure_conversation_client(sockfd,
                                     server_rsa_pub,
                                     shared_key);
+}
+
+void send_message(const byte_vec &msg)
+{
+    send_secure_message(sockfd, msg, shared_key, counter);
+}
+
+void recv_message(byte_vec &msg)
+{
+    recv_secure_message(sockfd, shared_key, counter, msg);
+}
+
+
+int main()
+{
+
+    client_init_connection();
+
+
+    byte_vec message= {'H', 'e', 'l', 'l', 'o', ' ', 'S', 'e', 'r', 'v', 'e', 'r', '!', 0x00}; // Null-terminated string
+    send_message(message);
 
     sleep(10);
 

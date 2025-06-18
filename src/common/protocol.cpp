@@ -4,10 +4,25 @@
 
 #include "protocol.h"
 
+#include <sstream>
+#include <iomanip>
+
+// TODO remove from there
+std::string byte_vec_to_hex(const byte_vec &data)
+{
+    std::ostringstream oss;
+    for (unsigned char byte : data)
+    {
+        oss << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
+    }
+    return oss.str();
+}
+
 // TODO
 
 bool send_all(int sockfd, const unsigned char *data, size_t len)
 {
+    LOG(DEBUG, "Sending %zu bytes", len);
     size_t sent = 0;
     while (sent < len)
     {
@@ -31,6 +46,7 @@ bool send_message(int sockfd, const byte_vec &data)
 
 bool recv_all(int sockfd, unsigned char *data, size_t len)
 {
+    LOG(DEBUG, "Receiving %zu bytes", len);
     size_t received = 0;
     while (received < len)
     {
@@ -61,9 +77,14 @@ void send_secure_message(int sockfd,
                          const byte_vec &key,
                          uint64_t &message_counter)
 {
-    // Derive IV from counter: first 4 bytes zero, last 8 bytes = counter
+    // Increment message counter
+    message_counter++;
+
+
+    // Derive IV from counter: first 4 bytes zero, last 8 bytes = counter (big-endian)
     byte_vec iv(12, 0);
-    std::memcpy(iv.data() + 4, &message_counter, sizeof(uint64_t));
+    uint64_t counter_be = htobe64(message_counter);
+    std::memcpy(iv.data() + 4, &counter_be, sizeof(uint64_t));
 
     // Encrypt plaintext
     byte_vec ciphertext, tag;
@@ -88,8 +109,6 @@ void send_secure_message(int sockfd,
         error("send_message failed");
         return;
     }
-
-    message_counter++;
 }
 
 bool recv_secure_message(int sockfd,
@@ -100,13 +119,17 @@ bool recv_secure_message(int sockfd,
     // Receive the full framed message
     byte_vec msg;
     if (!recv_message(sockfd, msg))
+    {
+        LOG(ERROR, "recv_message failed");
         return false;
-
+    }
     // TODO ???
-    if (msg.size() < (12 + 16)) // minimum size: IV + tag (ciphertext could be empty)
+    if (msg.size() < (12 + 16))
+    {
+        // minimum size: IV + tag (ciphertext could be empty)
         LOG(WARN, "Received message too short: %zu bytes", msg.size());
-    return false;
-
+        return false;
+    }
     size_t offset = 0;
 
     // Extract IV (12 bytes)
@@ -114,14 +137,16 @@ bool recv_secure_message(int sockfd,
     offset += 12;
 
     // Extract counter from last 8 bytes of IV
-    uint64_t msg_counter = 0;
-    std::memcpy(&msg_counter, iv.data() + 4, sizeof(uint64_t));
+    uint64_t counter_be = 0;
+    std::memcpy(&counter_be, iv.data() + 4, sizeof(uint64_t));
+
+    uint64_t counter = be64toh(counter_be);
 
     // Replay protection: must be strictly increasing
-    if (msg_counter <= last_received_counter)
+    if (counter <= last_received_counter)
     {
         LOG(WARN, "Received message with non-increasing counter: %llu <= %llu",
-            msg_counter, last_received_counter);
+            counter, last_received_counter);
         return false;
     }
 
@@ -133,6 +158,12 @@ bool recv_secure_message(int sockfd,
     // Extract tag (16 bytes)
     byte_vec tag(msg.data() + offset, msg.data() + offset + 16);
 
+    LOG(DEBUG, "Extracted IV, ciphertext and tag from received message");
+    LOG(DEBUG, "IV: %s", byte_vec_to_hex(iv).c_str());
+    LOG(DEBUG, "Ciphertext: %s", byte_vec_to_hex(ciphertext).c_str());
+    LOG(DEBUG, "Tag: %s", byte_vec_to_hex(tag).c_str());
+    LOG(DEBUG, "Message counter: %llu", counter);
+
     try
     {
         aes256gcm_decrypt(ciphertext, key, iv, tag, plaintext);
@@ -142,7 +173,7 @@ bool recv_secure_message(int sockfd,
         LOG(ERROR, "Decryption failed");
         return false;
     }
-    last_received_counter = msg_counter;
+    last_received_counter = counter;
     return true;
 }
 
@@ -188,7 +219,7 @@ bool init_secure_conversation_client(int sockfd,
 
     byte_vec shared_secret;
 
-    if (!derive_shared_secret_and_key(my_dh_keypair, server_dh_pubkey,shared_secret, shared_key))
+    if (!derive_shared_secret_and_key(my_dh_keypair, server_dh_pubkey, shared_secret, shared_key))
     {
         EVP_PKEY_free(server_dh_pubkey);
         error("Shared key derivation failed");
@@ -198,7 +229,6 @@ bool init_secure_conversation_client(int sockfd,
     EVP_PKEY_free(server_dh_pubkey);
     return true;
 }
-
 
 bool init_secure_conversation_server(int sockfd,
                                      EVP_PKEY *server_rsa_priv,
