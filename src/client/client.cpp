@@ -1,70 +1,19 @@
-#include "client.h"
+#include "protocol.h"
 
 #include <iostream>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-int connect_to_server(const std::string &host, uint16_t port)
-{
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0)
-    {
-        error("socket returned < 0");
-    }
-
-    sockaddr_in serv_addr{};
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(port);
-    if (inet_pton(AF_INET, host.c_str(), &serv_addr.sin_addr) <= 0)
-    {
-        error("intet_pton failed");
-    }
-
-    if (connect(sockfd, (sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-    {
-        error("connect failed");
-    }
-
-    LOG(INFO, "Connected to server at %s:%d", host.c_str(), port);
-    return sockfd;
-}
-
-byte_vec shared_key(32);
-uint64_t counter = 1000;
-int sockfd;
-void client_init_connection()
-{
-    sockfd = connect_to_server("127.0.0.1", 1234);
-
-    string path_to_public_key = "./server_pub.pem";
-
-    EVP_PKEY *server_rsa_pub = nullptr;
-    readPEMPublicKey(path_to_public_key, &server_rsa_pub);
-
-    init_secure_conversation_client(sockfd,
-                                    server_rsa_pub,
-                                    shared_key);
-}
-
-void send_message(const byte_vec &msg)
-{
-    send_secure_message(sockfd, msg, shared_key, counter);
-}
-
-void recv_message(byte_vec &msg)
-{
-    recv_secure_message(sockfd, shared_key, counter, msg);
-}
-
-
 int main()
 {
 
     client_init_connection();
 
+    string msg = "Hello, Server!";
+    byte_vec message(msg.begin(), msg.end());
+    message.push_back('\0'); // Now it is null-terminated
 
-    byte_vec message= {'H', 'e', 'l', 'l', 'o', ' ', 'S', 'e', 'r', 'v', 'e', 'r', '!', 0x00}; // Null-terminated string
     send_message(message);
 
     sleep(10);
