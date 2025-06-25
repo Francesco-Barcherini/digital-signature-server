@@ -16,8 +16,8 @@ using namespace std;
 void testSign()
 {
     LOG(INFO,"Testing RSA-SHA256 signing and verification...");
-    string path_to_private_key = "./server_priv.pem"; // Path to your PEM file containing the private key
-    string path_to_public_key = "./server_pub.pem"; // Path to your PEM file containing the public key
+    string path_to_private_key = DATA_PATH + "/server/server_priv.pem"; // Path to your PEM file containing the private key
+    string path_to_public_key = DATA_PATH + "/common/server_pub.pem"; // Path to your PEM file containing the public key
 
     EVP_PKEY* private_key = nullptr;
     EVP_PKEY* public_key = nullptr;

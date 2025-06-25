@@ -151,7 +151,8 @@ void aes256gcm_encrypt(const byte_vec &plaintext,
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
         error("Failed to create EVP_CIPHER_CTX");
-
+    // TODO: nei lab dice di usare EVP_EncryptInit senza _ex
+    // ma EVP_EncryptInit_ex è la versione corretta per AES-GCM (non deprecated)
     if (EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL) != 1)
         error("EVP_EncryptInit_ex failed");
 
@@ -442,3 +443,41 @@ bool derive_shared_secret_and_key(EVP_PKEY *my_privkey,
     EVP_PKEY_CTX_free(kctx);
     return true;
 }
+
+
+void sha256(const string &password, const byte_vec &salt, byte_vec &hashed_password)
+{
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    if (!ctx)
+        error("Failed to create EVP_MD_CTX for SHA-256 hashing");
+
+    unsigned int digest_len = EVP_MD_size(EVP_sha256());
+    hashed_password.resize(digest_len);
+
+    if (1 != EVP_DigestInit(ctx, EVP_sha256())) {
+        EVP_MD_CTX_free(ctx);
+        error("EVP_DigestInit failed");
+    }
+    if (1 != EVP_DigestUpdate(ctx, password.data(), password.size())) {
+        EVP_MD_CTX_free(ctx);
+        error("EVP_DigestUpdate failed");
+    }
+    if (1 != EVP_DigestUpdate(ctx, salt.data(), salt.size())) {
+        EVP_MD_CTX_free(ctx);
+        error("EVP_DigestUpdate failed");
+    }
+    if (1 != EVP_DigestFinal(ctx, hashed_password.data(), &digest_len)) {
+        EVP_MD_CTX_free(ctx);
+        error("EVP_DigestFinal failed");
+    }
+    hashed_password.resize(digest_len); // Resize to actual digest length
+    EVP_MD_CTX_free(ctx);
+}
+
+bool verify_sha256(const string& password, const byte_vec &salt, const byte_vec &hashed_password) {
+    byte_vec computed_hash;
+    sha256(password, salt, computed_hash);
+    
+    return (CRYPTO_memcmp(computed_hash.data(), hashed_password.data(), EVP_MD_size(EVP_sha256())) == 0);
+}
+

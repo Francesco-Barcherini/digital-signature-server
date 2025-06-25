@@ -1,3 +1,5 @@
+#pragma once
+
 #include "common.h"
 
 bool init_secure_conversation_client(int sockfd,

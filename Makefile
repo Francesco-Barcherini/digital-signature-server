@@ -1,5 +1,6 @@
 CC = g++
-CFLAGS = -lcrypto -Wall -Wextra -MMD -MP -I./src/common -I./src/client -I./src/server
+CFLAGS = -Wall -Wextra -MMD -MP -g -I./src/common -I./src/client -I./src/server
+LDFLAGS = -lcrypto
 
 OUT_DIR = out
 BUILD_DIR = build
@@ -40,10 +41,10 @@ $(BUILD_DIR)/server_%.o: src/server/%.cpp | $(BUILD_DIR)
 
 # Link binaries
 $(SERVER_BIN): $(COMMON_OBJ) $(SERVER_OBJ) | $(OUT_DIR)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 $(CLIENT_BIN): $(COMMON_OBJ) $(CLIENT_OBJ) | $(OUT_DIR)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 # Include dependency files if they exist
 -include $(COMMON_OBJ:.o=.d) $(CLIENT_OBJ:.o=.d) $(SERVER_OBJ:.o=.d)

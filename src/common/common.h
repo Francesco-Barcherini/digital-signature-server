@@ -11,6 +11,7 @@
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
+#include <openssl/rand.h>
 #include <vector>
 #include <stdexcept>
 
@@ -29,6 +30,11 @@ typedef enum
 extern logLevel log_level;
 
 using byte_vec = std::vector<uint8_t>;
+
+const string DATA_PATH = "data/";
+const int MAX_CMD_SIZE = 20;
+const int MAX_TEXT_SIZE = 100;
+const int SALT_SIZE = 8;
 
 void error(const char *msg);
 
@@ -56,5 +62,8 @@ bool verifyRsaSha256(const byte_vec &data, const byte_vec &signature, EVP_PKEY *
 bool derive_shared_secret_and_key(EVP_PKEY *my_privkey,
                           EVP_PKEY *peer_pubkey,
                           byte_vec &shared_secret, byte_vec &symmetric_key);
+
+void sha256(const string& password, const byte_vec &salt, byte_vec &hashed_password);
+bool verify_sha256(const string& password, const byte_vec &salt, const byte_vec &hashed_password);
 
 void LOG(logLevel level, const char *format, ...);

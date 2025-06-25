@@ -79,8 +79,7 @@ void send_secure_message(int sockfd,
 {
     // Increment message counter
     message_counter++;
-
-
+    //TODO: check counter overflow
     // Derive IV from counter: first 4 bytes zero, last 8 bytes = counter (big-endian)
     byte_vec iv(12, 0);
     uint64_t counter_be = htobe64(message_counter);
@@ -113,7 +112,7 @@ void send_secure_message(int sockfd,
 
 bool recv_secure_message(int sockfd,
                          const byte_vec &key,
-                         uint64_t &last_received_counter,
+                         uint64_t &last_received_counter, // TODO: reset the value on new session
                          byte_vec &plaintext)
 {
     // Receive the full framed message
