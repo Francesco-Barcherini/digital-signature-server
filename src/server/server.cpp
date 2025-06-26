@@ -52,7 +52,6 @@ void cmd_SignDoc(int sock_fd, const string& loggedUser) {
 
     try {
         employeeDB.signDocument(loggedUser);
-        send_message("Document signed successfully");
         LOG(INFO, "Document signed successfully for user %s", loggedUser.c_str());
     } catch (const runtime_error& e) {
         LOG(ERROR, "Error signing document for user %s: %s", loggedUser.c_str(), e.what());

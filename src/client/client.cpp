@@ -51,6 +51,36 @@ void cmd_CreateKeys() {
     cout << response << endl;
 }
 
+bool verifySignature(const string& documentPath, const byte_vec& signature) {
+    // read document content
+    FILE* doc_file = fopen(documentPath.c_str(), "rb");
+
+    fseek(doc_file, 0, SEEK_END);
+    size_t doc_size = ftell(doc_file);
+    fseek(doc_file, 0, SEEK_SET);
+
+    byte_vec doc_content(doc_size);
+    fread(doc_content.data(), 1, doc_size, doc_file);
+    fclose(doc_file);
+
+    // read public key
+    string pubkey_path = DATA_PATH + "/server/" + logged_username + "/pub_key.pem";
+    EVP_PKEY* pubkey = nullptr;
+    readPEMPublicKey(pubkey_path, &pubkey);
+
+    // verify signature
+    bool valid = verifyRsaSha256(doc_content, signature, pubkey);
+    EVP_PKEY_free(pubkey);
+
+    if (!valid) {
+        cout << "Signature verification failed." << endl;
+        return false;
+    }
+
+    cout << "Signature verification succeeded." << endl;
+    return true;
+}
+
 void cmd_SignDoc() {
     if (!isLogged()) {
         cout << "You must be logged in to sign a document." << endl;

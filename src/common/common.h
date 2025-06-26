@@ -34,7 +34,7 @@ extern logLevel log_level;
 
 using byte_vec = std::vector<uint8_t>;
 
-const string DATA_PATH = "data/";
+const string DATA_PATH = "data";
 const int MAX_CMD_SIZE = 20;
 const int MAX_TEXT_SIZE = 100;
 const int SALT_SIZE = 8;

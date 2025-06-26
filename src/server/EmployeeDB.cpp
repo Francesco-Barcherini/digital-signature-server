@@ -358,6 +358,10 @@ void EmployeeDB::signDocument(const string& username) {
         error("Document content too long");
     }
 
+    // remove null terminator if present
+    if (doc_content.back() == '\0')
+        doc_content.pop_back();
+
     Employee* emp = getEmployee(username);
 
     // Lock the mutex to protect access to the employee database
@@ -390,19 +394,4 @@ void EmployeeDB::signDocument(const string& username) {
 
     // Send the signature back to the client
     send_message(signature);
-
-    // TODO: remove
-    // LOG(INFO, "Test of the document signature");
-    // EVP_PKEY* pubkey = nullptr;
-    // string pub_file = "data/server/" + username + "/pub_key.pem";
-    // readPEMPublicKey(pub_file, &pubkey);
-
-    // if (!verifyRsaSha256(doc_content, signature, pubkey)) {
-    //     LOG(ERROR, "Signature verification failed for employee %s", username.c_str());
-    //     EVP_PKEY_free(pubkey);
-    //     error("Signature verification failed");
-    // } else {
-    //     LOG(INFO, "Signature verification succeeded for employee %s", username.c_str());
-    //     LOG(INFO, "Signature: %s", byte_vec_to_hex(signature).c_str());
-    // }
 }
