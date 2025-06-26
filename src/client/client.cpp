@@ -9,20 +9,100 @@ string command;
 
 string logged_username;
 
+bool isLogged() {
+    return !logged_username.empty();
+}
+
 void cmd_CreateKeys() {
-    
+    if (!isLogged()) {
+        cout << "You must be logged in to create keys." << endl;
+        return;
+    }
+    // send command and password
+    byte_vec message(command.begin(), command.end());
+    message.push_back('\0'); // Null-terminate the command
+    send_message(message);
+    LOG(INFO, "Sent command %s to server", string(command.begin(), command.end()).c_str());
+
+    // send password
+    string password;
+    cout << "Enter password for key generation: ";
+    cin >> password;
+    if (password.size() > MAX_TEXT_SIZE) {
+        cout << "Password too long (max " << MAX_TEXT_SIZE << " characters)" << endl;
+        return;
+    }
+    message.clear();
+    message.insert(message.end(), password.begin(), password.end());
+    message.push_back('\0'); // Null-terminate the password
+    send_message(message);
+    LOG(INFO, "Sent password to server");
+
+    // Receive response from server
+    message.clear();
+    recv_message(message);
+    if (message.empty()) {
+        cout << "Failed to receive response from server." << endl;
+        return;
+    }
+    // Convert byte_vec to string
+    string response = string(message.begin(), message.end()).c_str();
+    cout << response << endl;
 }
 
 void cmd_SignDoc() {
-    
+    if (!isLogged()) {
+        cout << "You must be logged in to sign a document." << endl;
+        return;
+    }
 }
 
 void cmd_GetPublicKey() {
-    
+    if (!isLogged()) {
+        cout << "You must be logged in to get a public key." << endl;
+        return;
+    }
+
+    string username;
+    cout << "Enter username to get public key: ";
+    cin >> username;
+    if (username.size() > MAX_TEXT_SIZE) {
+        cout << "Username too long (max " << MAX_TEXT_SIZE << " characters)" << endl;
+        return;
+    }
+
+    // send command and username
+    byte_vec message(command.begin(), command.end());
+    message.push_back('\0'); // Null-terminate the command
+    send_message(message);
+    LOG(INFO, "Sent command %s to server", string(command.begin(), command.end()).c_str());
+
+    // Send username
+    message.clear();
+    message.insert(message.end(), username.begin(), username.end());
+    message.push_back('\0'); // Null-terminate the username
+    send_message(message);
+    LOG(INFO, "Sent username %s to server", string(username.begin(), username.end()).c_str());
+
+    // Receive response from server
+    byte_vec response;
+    recv_message(response);
+    if (response.empty()) {
+        cout << "Failed to receive response from server." << endl;
+        return;
+    }
+
+    // Convert byte_vec to string
+    string public_key = string(response.begin(), response.end()).c_str();
+
+    cout << public_key << endl;
 }
 
 void cmd_DeleteKeys() {
-    
+    if (!isLogged()) {
+        cout << "You must be logged in to delete keys." << endl;
+        return;
+    }
 }
 
 bool change_password() {
@@ -129,6 +209,7 @@ void cmd_Exit() {
 }
 
 void print_menu() {
+    cout << endl;
     cout << "Digital Signature Server\nMenu:\n";
     cout << "CreateKeys - Create a new key pair\n";
     cout << "SignDoc - Sign a document\n";
@@ -140,6 +221,7 @@ void print_menu() {
 
 void operation() {
     print_menu();
+    cout << "> ";
     cin >> command;
 
     if (command.size() > MAX_CMD_SIZE) {
@@ -155,8 +237,13 @@ void operation() {
         cmd_GetPublicKey();    
     else if (command == "DeleteKeys")
         cmd_DeleteKeys();    
-    else if (command == "Login")
-        cmd_Login();    
+    else if (command == "Login") {
+        if (!logged_username.empty()) {
+            cout << "You are already logged in as " << logged_username << endl;
+            return;
+        }
+        cmd_Login(); 
+    }   
     else if (command == "Exit")
         cmd_Exit();  
     else      

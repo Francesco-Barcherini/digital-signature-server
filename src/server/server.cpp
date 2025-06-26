@@ -28,6 +28,64 @@ void test()
     test_aes256gcm_encrypt_decrypt();
 }
 
+void cmd_CreateKeys(int sock_fd, const string& loggedUser) {
+    LOG(INFO, "Received request to create keys for user: %s", loggedUser.c_str());
+
+    try {
+        bool success = employeeDB.createKeys(loggedUser);
+        if (success) {
+            send_message("Keys created successfully");
+            LOG(INFO, "Keys created successfully for user %s", loggedUser.c_str());
+        } else {
+            send_message("Failed to create keys or keys already exist");
+            LOG(WARN, "Failed to create keys or keys already exist for user %s", loggedUser.c_str());
+        }
+    } catch (const runtime_error& e) {
+        LOG(ERROR, "Error creating keys for user %s: %s", loggedUser.c_str(), e.what());
+        send_message(e.what());
+    }
+}
+
+void cmd_SignDoc(int sock_fd) {
+
+}
+
+void cmd_GetPublicKey(int sock_fd) {
+    byte_vec username;
+    recv_message(username);
+    LOG(INFO, "Received request for public key of user: %s", string(username.begin(), username.end()).c_str());
+
+    if (username.empty())
+    {
+        LOG(WARN, "Username is empty");
+        send_message("Username cannot be empty");
+        return;
+    }
+
+    if (username.size() > MAX_TEXT_SIZE)
+    {
+        LOG(WARN, "Username too long");
+        send_message("Username too long (max " + to_string(MAX_TEXT_SIZE) + " characters)");
+        return;
+    }
+
+    string username_str = string(username.begin(), username.end()).c_str();
+    
+    try {
+        byte_vec public_key = employeeDB.getPublicKey(username_str);
+        cout << string(public_key.begin(), public_key.end()).c_str() << endl;
+        send_message(public_key);
+        LOG(INFO, "Sent public key for user %s", username_str.c_str());
+    } catch (const runtime_error& e) {
+        LOG(ERROR, "Error retrieving public key for user %s: %s", username_str.c_str(), e.what());
+        send_message(e.what());
+    }
+}
+
+void cmd_DeleteKeys(int sock_fd) {
+
+}
+
 void cmd_Login(int* sock_fd, string& loggedUser)
 {
     byte_vec username, password;
@@ -72,16 +130,39 @@ void command_handler(int* conn_fd, string& loggedUser)
     command_str = string(command.begin(), command.end()).c_str();
     LOG(INFO, "Received command %s from socket %d", command_str.c_str(), *conn_fd);
 
-    // if (command_str == "CreateKeys")
-    //     cmd_CreateKeys(conn_fd);    
-    // else if (command_str == "SignDoc")
-    //     cmd_SignDoc(conn_fd);    
-    // else if (command_str == "GetPublicKey")
-    //     cmd_GetPublicKey(conn_fd);    
-    // else if (command_str == "DeleteKeys")
-    //     cmd_DeleteKeys(conn_fd);    
-    // else 
-    if (command_str == "Login") {
+    if (command_str == "CreateKeys") {
+        if (loggedUser.empty()) {
+            LOG(WARN, "User must be logged for the operation");
+            send_message("You must be logged in to execute the operation");
+            return;
+        }
+        cmd_CreateKeys(*conn_fd, loggedUser);
+    }
+    else if (command_str == "SignDoc") {
+        if (loggedUser.empty()) {
+            LOG(WARN, "User must be logged for the operation");
+            send_message("You must be logged in to execute the operation");
+            return;
+        }
+        cmd_SignDoc(*conn_fd);
+    }
+    else if (command_str == "GetPublicKey") {
+        if (loggedUser.empty()) {
+            LOG(WARN, "User must be logged for the operation");
+            send_message("You must be logged in to execute the operation");
+            return;
+        }
+        cmd_GetPublicKey(*conn_fd);
+    }
+    else if (command_str == "DeleteKeys") {
+        if (loggedUser.empty()) {
+            LOG(WARN, "User must be logged for the operation");
+            send_message("You must be logged in to execute the operation");
+            return;
+        }
+        cmd_DeleteKeys(*conn_fd);
+    }
+    else if (command_str == "Login") {
         if (!loggedUser.empty()) {
             LOG(WARN, "User %s is already logged in", loggedUser.c_str());
             send_message("You are already logged in as " + loggedUser);

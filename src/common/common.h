@@ -38,6 +38,8 @@ const int SALT_SIZE = 8;
 
 void error(const char *msg);
 
+void genRandomBytes(byte_vec &data, size_t size);
+
 void ffdhe2048GenMsgAndKeys(byte_vec &public_msg, EVP_PKEY *&keypair);
 void ffdhe2048ComputeSharedSecret(const byte_vec &peer_pubkey_msg, EVP_PKEY *privkey, byte_vec &shared_secret);
 

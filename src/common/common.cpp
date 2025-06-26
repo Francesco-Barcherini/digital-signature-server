@@ -481,3 +481,28 @@ bool verify_sha256(const string& password, const byte_vec &salt, const byte_vec 
     return (CRYPTO_memcmp(computed_hash.data(), hashed_password.data(), EVP_MD_size(EVP_sha256())) == 0);
 }
 
+void genRSAKeyPair(EVP_PKEY **pubkey, EVP_PKEY **privkey)
+{
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+    if (!ctx)
+        error("Failed to create RSA context");
+
+    if (EVP_PKEY_keygen_init(ctx) <= 0)
+        error("Failed to initialize RSA keygen");
+
+    if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048) <= 0)
+        error("Failed to set RSA key size");
+
+    if (EVP_PKEY_keygen(ctx, privkey) <= 0)
+        error("Failed to generate RSA private key");
+
+    *pubkey = EVP_PKEY_dup(*privkey);
+    if (!*pubkey)
+    {
+        EVP_PKEY_free(*privkey);
+        error("Failed to duplicate RSA public key");
+    }
+
+    EVP_PKEY_CTX_free(ctx);
+}
+

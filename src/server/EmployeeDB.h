@@ -9,9 +9,8 @@
 struct Employee {
     byte_vec passwordSaltHash;
     byte_vec salt;
-    byte_vec pubKey;
-    byte_vec enc_privKey;
     
+    bool hasKeys;
     bool firstLogin;
     bool deletedKeys;
 };
@@ -22,6 +21,11 @@ public:
     bool loginEmployee(const string& username, const string& password);
     bool changePassword(Employee& employee);
     Employee* getEmployee(const string& username);
+    byte_vec getPublicKey(const string& username);
+    bool createKeys(const string& username);
+    void generateRSAKeyPair(EVP_PKEY*& keypair);
+
+
 
 private:
     unordered_map<string, Employee> employees;
