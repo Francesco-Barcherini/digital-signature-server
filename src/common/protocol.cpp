@@ -4,19 +4,6 @@
 
 #include "protocol.h"
 
-#include <sstream>
-#include <iomanip>
-
-// TODO remove from there
-std::string byte_vec_to_hex(const byte_vec &data)
-{
-    std::ostringstream oss;
-    for (unsigned char byte : data)
-    {
-        oss << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
-    }
-    return oss.str();
-}
 
 // TODO
 
@@ -65,7 +52,7 @@ bool recv_message(int sockfd, byte_vec &out)
         return false;
 
     uint32_t len = ntohl(len_net);
-    if (len > 10 * 1024 * 1024) // Optional: limit to 10 MB
+    if (len > MAX_DOC_SIZE) // Optional: limit to 10 MB
         return false;
 
     out.resize(len);

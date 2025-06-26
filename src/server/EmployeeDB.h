@@ -21,11 +21,11 @@ public:
     bool loginEmployee(const string& username, const string& password);
     bool changePassword(Employee& employee);
     Employee* getEmployee(const string& username);
-    byte_vec getPublicKey(const string& username);
+    string getPublicKey(const string& username);
     bool createKeys(const string& username);
     void generateRSAKeyPair(EVP_PKEY*& keypair);
-
-
+    void deleteKeys(const string& username);
+    void signDocument(const string& username);
 
 private:
     unordered_map<string, Employee> employees;

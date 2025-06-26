@@ -34,6 +34,16 @@ void genRandomBytes(byte_vec &data, size_t size)
         error("Failed to generate random bytes");
 }
 
+string byte_vec_to_hex(const byte_vec &data)
+{
+    std::ostringstream oss;
+    for (unsigned char byte : data)
+    {
+        oss << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
+    }
+    return oss.str();
+}
+
 void ffdhe2048GenMsgAndKeys(byte_vec &public_msg, EVP_PKEY *&keypair)
 {
     EVP_PKEY *dh_params = NULL;
@@ -235,13 +245,14 @@ void aes256gcm_decrypt(const byte_vec &ciphertext,
     plaintext.resize(plaintext_len);
 }
 
-void readPEMPrivateKey(string filename, EVP_PKEY **privkey)
+void readPEMPrivateKey(string filename, EVP_PKEY **privkey, string passphrase)
 {
     FILE *file = fopen(filename.c_str(), "r");
     if (!file)
         error("Failed to open PEM file");
 
-    *privkey = PEM_read_PrivateKey(file, NULL, NULL, NULL);
+    *privkey = PEM_read_PrivateKey(file, NULL, NULL, passphrase.empty() ? NULL : (void *)passphrase.c_str());
+
     fclose(file);
 
     if (!*privkey)

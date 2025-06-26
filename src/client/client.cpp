@@ -30,6 +30,7 @@ void cmd_CreateKeys() {
     cin >> password;
     if (password.size() > MAX_TEXT_SIZE) {
         cout << "Password too long (max " << MAX_TEXT_SIZE << " characters)" << endl;
+        send_message(byte_vec()); // Send empty message to indicate failure
         return;
     }
     message.clear();
@@ -55,6 +56,89 @@ void cmd_SignDoc() {
         cout << "You must be logged in to sign a document." << endl;
         return;
     }
+
+    // get document path
+    string doc_name, doc_path;
+    cout << "Enter document to sign: ";
+    cin >> doc_name;
+    if (doc_name.size() > MAX_TEXT_SIZE) {
+        cout << "Document path too long (max " << MAX_TEXT_SIZE << " characters)" << endl;
+        return; 
+    }
+    doc_path = DATA_PATH + "/client/" + logged_username + "/" + doc_name;
+
+    // read document content
+    FILE* doc_file = fopen(doc_path.c_str(), "rb");
+    if (!doc_file) {
+        cout << "Failed to open document file: " << doc_path << endl;
+        return;
+    }
+
+    fseek(doc_file, 0, SEEK_END);
+    size_t doc_size = ftell(doc_file);
+    fseek(doc_file, 0, SEEK_SET);
+
+    if (doc_size > MAX_DOC_SIZE) {
+        cout << "Document size too large (max " << MAX_DOC_SIZE << " bytes)" << endl;
+        fclose(doc_file);
+        return;
+    }
+
+    byte_vec doc_content(doc_size);
+    if (fread(doc_content.data(), 1, doc_size, doc_file) != doc_size) {
+        cout << "Failed to read document file: " << doc_path << endl;
+        fclose(doc_file);
+        return;
+    }
+
+    fclose(doc_file);
+
+    string privkey_password;
+    cout << "Enter password for private key: ";
+    cin >> privkey_password;
+    if (privkey_password.size() > MAX_TEXT_SIZE) {
+        cout << "Password too long (max " << MAX_TEXT_SIZE << " characters)" << endl;
+        return;
+    }
+
+    // send command
+    byte_vec message(command.begin(), command.end());
+    message.push_back('\0'); // Null-terminate the command
+    send_message(message);
+    LOG(INFO, "Sent command %s to server", string(command.begin(), command.end()).c_str());
+
+    // send document content
+    message.clear();
+    message.insert(message.end(), doc_content.begin(), doc_content.end());
+    message.push_back('\0'); // Null-terminate the document content
+    send_message(message);
+    LOG(INFO, "Sent document content to server");
+
+    // send private key password
+    message.clear();
+    message.insert(message.end(), privkey_password.begin(), privkey_password.end());
+    message.push_back('\0'); // Null-terminate the password
+    send_message(message);
+    LOG(INFO, "Sent private key password to server");
+
+    // Receive response from server
+    message.clear();
+    recv_message(message);
+    if (message.empty()) {
+        cout << "Failed to receive response from server." << endl;
+        return;
+    }
+
+    string response = string(message.begin(), message.end()).c_str();
+    // if response starts with SignDoc failed, print the error
+    if (response.find("SignDoc failed") == 0) {
+        cout << response << endl;
+        return;
+    }
+    
+    cout << "Signature: " << byte_vec_to_hex(message) << endl;
+
+    //verifySignature(doc_path, message);
 }
 
 void cmd_GetPublicKey() {
@@ -103,6 +187,23 @@ void cmd_DeleteKeys() {
         cout << "You must be logged in to delete keys." << endl;
         return;
     }
+
+    // send command
+    byte_vec message(command.begin(), command.end());   
+    message.push_back('\0'); // Null-terminate the command
+    send_message(message);
+    LOG(INFO, "Sent command %s to server", string(command.begin(), command.end()).c_str());
+
+    // Receive response from server
+    message.clear();
+    recv_message(message);
+    if (message.empty()) {
+        cout << "Failed to receive response from server." << endl;
+        return;
+    }
+    // Convert byte_vec to string
+    string response = string(message.begin(), message.end()).c_str();
+    cout << response << endl;
 }
 
 bool change_password() {
@@ -111,6 +212,7 @@ bool change_password() {
     cin >> new_password;
     if (new_password.size() > MAX_TEXT_SIZE) {
         cout << "Password too long (max " << MAX_TEXT_SIZE << " characters). Please try again." << endl;
+        send_message(byte_vec()); // Send empty message to indicate failure
         return false;
     }
 

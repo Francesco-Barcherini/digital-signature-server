@@ -46,8 +46,18 @@ void cmd_CreateKeys(int sock_fd, const string& loggedUser) {
     }
 }
 
-void cmd_SignDoc(int sock_fd) {
+void cmd_SignDoc(int sock_fd, const string& loggedUser) {
 
+    LOG(INFO, "Received request to sign document for user: %s", loggedUser.c_str());
+
+    try {
+        employeeDB.signDocument(loggedUser);
+        send_message("Document signed successfully");
+        LOG(INFO, "Document signed successfully for user %s", loggedUser.c_str());
+    } catch (const runtime_error& e) {
+        LOG(ERROR, "Error signing document for user %s: %s", loggedUser.c_str(), e.what());
+        send_message("SignDoc failed: " + string(e.what()));
+    }
 }
 
 void cmd_GetPublicKey(int sock_fd) {
@@ -72,9 +82,9 @@ void cmd_GetPublicKey(int sock_fd) {
     string username_str = string(username.begin(), username.end()).c_str();
     
     try {
-        byte_vec public_key = employeeDB.getPublicKey(username_str);
-        cout << string(public_key.begin(), public_key.end()).c_str() << endl;
-        send_message(public_key);
+        string PEM_public_key = employeeDB.getPublicKey(username_str);
+        cout << string(PEM_public_key.begin(), PEM_public_key.end()).c_str() << endl;
+        send_message(PEM_public_key);
         LOG(INFO, "Sent public key for user %s", username_str.c_str());
     } catch (const runtime_error& e) {
         LOG(ERROR, "Error retrieving public key for user %s: %s", username_str.c_str(), e.what());
@@ -82,7 +92,17 @@ void cmd_GetPublicKey(int sock_fd) {
     }
 }
 
-void cmd_DeleteKeys(int sock_fd) {
+void cmd_DeleteKeys(int sock_fd, const string& loggedUser) {
+    LOG(INFO, "Received request to delete keys for user: %s", loggedUser.c_str());
+
+    try {
+        employeeDB.deleteKeys(loggedUser);
+        send_message("Keys deleted successfully");
+        LOG(INFO, "Keys deleted successfully for user %s", loggedUser.c_str());
+    } catch (const runtime_error& e) {
+        LOG(ERROR, "Error deleting keys for user %s: %s", loggedUser.c_str(), e.what());
+        send_message(e.what());
+    }
 
 }
 
@@ -144,7 +164,7 @@ void command_handler(int* conn_fd, string& loggedUser)
             send_message("You must be logged in to execute the operation");
             return;
         }
-        cmd_SignDoc(*conn_fd);
+        cmd_SignDoc(*conn_fd, loggedUser);
     }
     else if (command_str == "GetPublicKey") {
         if (loggedUser.empty()) {
@@ -160,7 +180,7 @@ void command_handler(int* conn_fd, string& loggedUser)
             send_message("You must be logged in to execute the operation");
             return;
         }
-        cmd_DeleteKeys(*conn_fd);
+        cmd_DeleteKeys(*conn_fd, loggedUser);
     }
     else if (command_str == "Login") {
         if (!loggedUser.empty()) {
