@@ -74,4 +74,5 @@ bool derive_shared_secret_and_key(EVP_PKEY *my_privkey,
 void sha256(const string& password, const byte_vec &salt, byte_vec &hashed_password);
 bool verify_sha256(const string& password, const byte_vec &salt, const byte_vec &hashed_password);
 
+void set_log_level(char* level);
 void LOG(logLevel level, const char *format, ...);

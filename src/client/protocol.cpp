@@ -27,8 +27,9 @@ int connect_to_server(const std::string &host, uint16_t port)
 }
 
 byte_vec shared_key(32);
-uint64_t counter = 1000;
+uint64_t counter = 0;
 int sockfd;
+
 void client_init_connection()
 {
     sockfd = connect_to_server("127.0.0.1", 1234);

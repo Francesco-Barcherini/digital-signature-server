@@ -372,6 +372,19 @@ static const char *level_names[] = {
     "ERROR"};
 #define COLOR_RESET "\033[0m"
 
+
+void set_log_level(char* level)
+{
+    if (strcmp(level, "DEBUG") == 0)
+        log_level = DEBUG;
+    else if (strcmp(level, "INFO") == 0)
+        log_level = INFO;
+    else if (strcmp(level, "WARN") == 0)
+        log_level = WARN;
+    else if (strcmp(level, "ERROR") == 0)
+        log_level = ERROR;
+}
+
 void LOG(logLevel level, const char *format, ...)
 {
     if (level < log_level)
