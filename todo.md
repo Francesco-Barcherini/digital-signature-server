@@ -4,7 +4,7 @@
 - [ ] (forse fatto) Variabili thread_local per getire le connessioni multiple 
 - [x] Check counter overflow per l'IV di AES_GCM
 - [ ] Azzerare plaintext e chiavi private dalla memoria dopo l'uso
-- [ ] Evitare che se un thread muore, muoiono tutti
+- [x] Evitare che se un thread muore, muoiono tutti
 - [ ] () Gestire Ctrl+C del client
 - [ ] Scommentare la exit del server
 - [ ] Password oscurata lato client

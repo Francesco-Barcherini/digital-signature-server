@@ -40,7 +40,14 @@ void connection_handler(int fd)
     string loggedUser = "";
     while (1)
     {
-        command_handler(loggedUser);
+        try
+        {
+            command_handler(loggedUser);
+        }
+        catch (...)
+        {
+            break;
+        }
     }
 }
 
