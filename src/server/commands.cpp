@@ -127,9 +127,10 @@ void cmd_Login(string &loggedUser)
     string username_str = string(username.begin(), username.end()).c_str();
     string password_str = string(password.begin(), password.end()).c_str();
 
-    employeeDB.loginEmployee(username_str, password_str);
-
-    loggedUser = username_str; // Store the username for the session
+    if (employeeDB.loginEmployee(username_str, password_str))
+    {
+        loggedUser = username_str; // Store the username for the session
+    }
 }
 
 void cmd_Exit(int *sock_fd)
@@ -138,8 +139,6 @@ void cmd_Exit(int *sock_fd)
     LOG(INFO, "Connection closed for socket %d", *sock_fd);
     *sock_fd = -1; // Mark the socket as closed
 }
-
-
 
 void command_handler(string &loggedUser)
 {
@@ -209,5 +208,3 @@ void command_handler(string &loggedUser)
     else
         LOG(WARN, "Unknown command received: %s", command_str);
 }
-
-

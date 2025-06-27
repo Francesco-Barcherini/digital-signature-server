@@ -15,10 +15,10 @@ bool isLogged() {
 
 /*
 client:
-    CreateKeys
+    "CreateKeys"
     password
 server:
-    
+    "Keys created successfully"
 */
 void cmd_CreateKeys() {
     if (!isLogged()) {
@@ -88,6 +88,14 @@ bool verifySignature(const string& documentPath, const byte_vec& signature) {
     return true;
 }
 
+/*
+client:
+    "SignDoc"
+    document
+    password
+server:
+    signature or "SignDoc failed" 
+*/
 void cmd_SignDoc() {
     if (!isLogged()) {
         cout << "You must be logged in to sign a document." << endl;
@@ -178,6 +186,14 @@ void cmd_SignDoc() {
     //verifySignature(doc_path, message);
 }
 
+
+/*
+client:
+    "GetPublicKey"
+    username
+server:
+    pubkey
+*/
 void cmd_GetPublicKey() {
     if (!isLogged()) {
         cout << "You must be logged in to get a public key." << endl;
@@ -219,6 +235,13 @@ void cmd_GetPublicKey() {
     cout << public_key << endl;
 }
 
+/*
+client:
+    "DeleteKeys"
+    username
+server:
+    "Keys deleted successfully"
+*/
 void cmd_DeleteKeys() {
     if (!isLogged()) {
         cout << "You must be logged in to delete keys." << endl;
@@ -243,6 +266,12 @@ void cmd_DeleteKeys() {
     cout << response << endl;
 }
 
+/*
+client:
+    password or empty
+server:
+    "Password changed successfully"
+*/
 bool change_password() {
     string new_password;
     cout << "Enter new password: ";
@@ -278,6 +307,15 @@ bool change_password() {
     return false; 
 }
 
+
+/*
+client:
+    "Login"
+    username
+    password
+server:
+    "Login successful" or "First login: change password"
+*/
 void cmd_Login() {
     string username, password;
     cout << "Enter username: ";
