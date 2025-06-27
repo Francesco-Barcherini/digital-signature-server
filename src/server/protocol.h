@@ -4,6 +4,7 @@
 #include "../common/protocol.h"
 
 
+extern thread_local int sockfd;
 
 void server_init_connection(int conn_fd);
 

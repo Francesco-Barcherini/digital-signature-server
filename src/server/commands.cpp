@@ -8,6 +8,8 @@
 
 extern EmployeeDB employeeDB;
 
+bool running = true;
+
 void cmd_CreateKeys(const string &loggedUser)
 {
     LOG(INFO, "Received request to create keys for user: %s", loggedUser.c_str());
@@ -133,11 +135,11 @@ void cmd_Login(string &loggedUser)
     }
 }
 
-void cmd_Exit(int *sock_fd)
+void cmd_Exit()
 {
-    close(*sock_fd);
-    LOG(INFO, "Connection closed for socket %d", *sock_fd);
-    *sock_fd = -1; // Mark the socket as closed
+    close(sockfd);
+    LOG(INFO, "Connection closed for socket %d", sockfd);
+    running = false; // Set running to false to stop the server loop
 }
 
 void command_handler(string &loggedUser)
@@ -146,7 +148,7 @@ void command_handler(string &loggedUser)
     string command_str;
     recv_message(command);
     command_str = string(command.begin(), command.end()).c_str();
-    LOG(INFO, "Received command %s", command_str.c_str());
+    LOG(INFO, "Received command %s, from socket %d", command_str.c_str(), sockfd);
 
     if (command_str == "CreateKeys")
     {
@@ -203,7 +205,7 @@ void command_handler(string &loggedUser)
     {
         if (!loggedUser.empty())
             loggedUser.clear(); // Clear username on exit
-        // cmd_Exit(conn_fd);
+        cmd_Exit();
     }
     else
         LOG(WARN, "Unknown command received: %s", command_str);

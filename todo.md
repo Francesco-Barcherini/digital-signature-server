@@ -6,10 +6,10 @@
 - [ ] Azzerare plaintext e chiavi private dalla memoria dopo l'uso (tet)
 - [x] Evitare che se un thread muore, muoiono tutti
 - [x] Gestire Ctrl+C del client
-- [ ] Scommentare la exit del server (ave)
+- [x] Scommentare la exit del server (ave)
 - [x] Sistemare LOG
 - [ ] Protocollo con payload unico (ave)
-- [ ] IV aumenta esattamente di uno (ave)
-- [ ] Inviare lunghezza cifrato in chiaro (ave)
+- [x] IV aumenta esattamente di uno (ave)
+- [x] Inviare lunghezza cifrato in chiaro (ave)
 - [ ] Aggiungere padding al messaggio?
 - [ ] Testare bene tutto

@@ -38,7 +38,7 @@ void connection_handler(int fd)
     LOG(INFO, "Received message from client: %s", string(message.begin(), message.end()).c_str());
 
     string loggedUser = "";
-    while (1)
+    while (running)
     {
         try
         {
