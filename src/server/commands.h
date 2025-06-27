@@ -2,4 +2,4 @@
 
 void command_handler(string &loggedUser);
 
-extern bool running;
+extern thread_local bool running;

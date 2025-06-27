@@ -9,10 +9,10 @@ string command;
 
 string logged_username = "";
 
-bool isLogged()
-{
-    return !logged_username.empty();
-}
+// bool isLogged()
+// {
+//     return !logged_username.empty();
+// }
 
 /*
 client:
@@ -23,11 +23,11 @@ server:
 */
 void cmd_CreateKeys()
 {
-    if (!isLogged())
-    {
-        cout << "You must be logged in to create keys." << endl;
-        return;
-    }
+    // if (!isLogged())
+    // {
+    //     cout << "You must be logged in to create keys." << endl;
+    //     return;
+    // }
 
     // send command and password
     string cmd = "CreateKeys";
@@ -107,11 +107,11 @@ server:
 */
 void cmd_SignDoc()
 {
-    if (!isLogged())
-    {
-        cout << "You must be logged in to sign a document." << endl;
-        return;
-    }
+    // if (!isLogged())
+    // {
+    //     cout << "You must be logged in to sign a document." << endl;
+    //     return;
+    // }
 
     // get document path
     string doc_name, doc_path;
@@ -214,11 +214,11 @@ server:
 */
 void cmd_GetPublicKey()
 {
-    if (!isLogged())
-    {
-        cout << "You must be logged in to get a public key." << endl;
-        return;
-    }
+    // if (!isLogged())
+    // {
+    //     cout << "You must be logged in to get a public key." << endl;
+    //     return;
+    // }
 
     string username;
     cout << "Enter username to get public key: ";
@@ -267,11 +267,11 @@ server:
 */
 void cmd_DeleteKeys()
 {
-    if (!isLogged())
-    {
-        cout << "You must be logged in to delete keys." << endl;
-        return;
-    }
+    // if (!isLogged())
+    // {
+    //     cout << "You must be logged in to delete keys." << endl;
+    //     return;
+    // }
 
     // send command
     string cmd = "DeleteKeys";
@@ -354,7 +354,7 @@ void cmd_Login()
     if (username.size() > MAX_TEXT_SIZE)
     {
         cout << "Username too long (max " << MAX_TEXT_SIZE << " characters). Please try again." << endl;
-        return;
+        exit(0);
     }
 
     cout << "Enter password: ";
@@ -362,7 +362,7 @@ void cmd_Login()
     if (password.size() > MAX_TEXT_SIZE)
     {
         cout << "Password too long (max " << MAX_TEXT_SIZE << " characters). Please try again." << endl;
-        return;
+        exit(0);
     }
 
     // send cmd, username, password
@@ -391,7 +391,7 @@ void cmd_Login()
     if (message.empty())
     {
         cout << "Failed to receive response from server." << endl;
-        return;
+        exit(0);
     }
 
     // Convert byte_vec to string
@@ -407,8 +407,10 @@ void cmd_Login()
         if (change_password())
             logged_username = username;
     }
-    else
+    else{
         cout << "Login failed: " << response << endl;
+        exit(0);
+    }
 }
 
 void cmd_Exit()

@@ -146,6 +146,7 @@ void command_handler(string &loggedUser)
 {
     byte_vec command;
     string command_str;
+    
     recv_message(command);
     command_str = string(command.begin(), command.end()).c_str();
     LOG(INFO, "Received command %s, from socket %d", command_str.c_str(), sockfd);
