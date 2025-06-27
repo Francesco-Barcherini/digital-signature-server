@@ -4,7 +4,6 @@
 
 #include "protocol.h"
 
-
 // TODO
 
 bool send_all(int sockfd, const unsigned char *data, size_t len)
@@ -26,6 +25,13 @@ bool send_message(int sockfd, const byte_vec &data)
     uint32_t len = htonl(data.size());
     if (!send_all(sockfd, reinterpret_cast<unsigned char *>(&len), sizeof(len)))
         return false;
+    if (!send_all(sockfd, data.data(), data.size()))
+        return false;
+    return true;
+}
+
+bool send_bytes(int sockfd, const byte_vec &data)
+{
     if (!send_all(sockfd, data.data(), data.size()))
         return false;
     return true;
@@ -59,38 +65,83 @@ bool recv_message(int sockfd, byte_vec &out)
     return recv_all(sockfd, out.data(), len);
 }
 
+bool recv_bytes(int sockfd, byte_vec &out, size_t len)
+{
+    out.resize(len);
+    return recv_all(sockfd, out.data(), len);
+}
+
 void send_secure_message(int sockfd,
                          const byte_vec &plaintext,
                          const byte_vec &key,
                          uint64_t &message_counter)
 {
     // Increment message counter
-    message_counter++;
-    //TODO: check counter overflow
+    // TODO: check counter overflow
     // Derive IV from counter: first 4 bytes zero, last 8 bytes = counter (big-endian)
-    byte_vec iv(12, 0);
-    uint64_t counter_be = htobe64(message_counter);
-    std::memcpy(iv.data() + 4, &counter_be, sizeof(uint64_t));
+    byte_vec iv_header(12, 0);
+    byte_vec iv_body(12, 0);
+    uint64_t counter_be;
 
-    // Encrypt plaintext
-    byte_vec ciphertext, tag;
-    aes256gcm_encrypt(plaintext, key, iv, ciphertext, tag);
+    // Set IV for header
+    counter_be = htobe64(++message_counter);
+    std::memcpy(iv_header.data() + 4, &counter_be, sizeof(uint64_t));
 
-    // Build message: [12-byte IV][ciphertext][16-byte tag]
-    byte_vec msg;
-    msg.resize(iv.size() + ciphertext.size() + tag.size());
+    // Set IV for body
+    counter_be = htobe64(++message_counter);
+    std::memcpy(iv_body.data() + 4, &counter_be, sizeof(uint64_t));
 
+    // Encrypt body
+    byte_vec ciphertext_body, tag_body;
+
+    aes256gcm_encrypt(plaintext, key, iv_body, ciphertext_body, tag_body);
+
+    size_t body_message_len = iv_body.size() + ciphertext_body.size() + tag_body.size();
+
+    // Encrypt header
+    byte_vec ciphertext_header, tag_header, plaintext_header;
+    plaintext_header.resize(4);
+
+    uint32_t body_len = htonl((uint32_t)body_message_len);
+    std::memcpy(plaintext_header.data(), &body_len, 4);
+
+    aes256gcm_encrypt(plaintext_header, key, iv_header, ciphertext_header, tag_header);
+
+    // Send header
+
+    byte_vec msg_header;
+    msg_header.resize(iv_header.size() + ciphertext_header.size() + tag_header.size());
     size_t offset = 0;
-    std::memcpy(msg.data() + offset, iv.data(), iv.size());
-    offset += iv.size();
+    std::memcpy(msg_header.data() + offset, iv_header.data(), iv_header.size());
+    offset += iv_header.size();
+    std::memcpy(msg_header.data() + offset, ciphertext_header.data(), ciphertext_header.size());
+    offset += ciphertext_header.size();
+    std::memcpy(msg_header.data() + offset, tag_header.data(), tag_header.size());
+    size_t header_size = msg_header.size();
 
-    std::memcpy(msg.data() + offset, ciphertext.data(), ciphertext.size());
-    offset += ciphertext.size();
-
-    std::memcpy(msg.data() + offset, tag.data(), tag.size());
+    LOG(DEBUG, "Sending secure message with header size %zu and body size %zu",
+        header_size, body_message_len);
 
     // Send with length prefix framing
-    if (!send_message(sockfd, msg))
+    if (!send_bytes(sockfd, msg_header))
+    {
+        error("send_message failed");
+        return;
+    }
+
+    // Send body
+
+    byte_vec msg_body;
+    msg_body.resize(iv_body.size() + ciphertext_body.size() + tag_body.size());
+    offset = 0;
+    std::memcpy(msg_body.data() + offset, iv_body.data(), iv_body.size());
+    offset += iv_body.size();
+    std::memcpy(msg_body.data() + offset, ciphertext_body.data(), ciphertext_body.size());
+    offset += ciphertext_body.size();
+    std::memcpy(msg_body.data() + offset, tag_body.data(), tag_body.size());
+
+    // Send with length prefix framing
+    if (!send_bytes(sockfd, msg_body))
     {
         error("send_message failed");
         return;
@@ -103,30 +154,74 @@ bool recv_secure_message(int sockfd,
                          byte_vec &plaintext)
 {
     // Receive the full framed message
-    byte_vec msg;
-    if (!recv_message(sockfd, msg))
+    byte_vec msg_header;
+    if (!recv_bytes(sockfd, msg_header, 32)) // Expecting exactly 32 bytes for the header
     {
-        LOG(ERROR, "recv_message failed");
+        LOG(ERROR, "recv_message failed for header");
         return false;
     }
-    // TODO ???
-    if (msg.size() < (12 + 16))
+
+    byte_vec iv_header(msg_header.data(), msg_header.data() + 12);              // First 12 bytes are the IV
+    byte_vec ciphertext_header(msg_header.data() + 12, msg_header.data() + 16); // Next 4 bytes are the ciphertext
+    byte_vec tag_header(msg_header.data() + 16, msg_header.data() + 32);        // Last 16 bytes are the tag
+
+    // Receive the header counter
+    uint64_t counter_be;
+    std::memcpy(&counter_be, iv_header.data() + 4, sizeof(uint64_t));
+    uint64_t counter = be64toh(counter_be);
+
+    if (counter <= last_received_counter)
+    {
+        LOG(WARN, "Received message with non-increasing counter: %llu <= %llu",
+            counter, last_received_counter);
+        return false;
+    }
+    last_received_counter = counter;
+
+    // Decrypt header
+    byte_vec plaintext_header;
+    try
+    {
+        aes256gcm_decrypt(ciphertext_header, key, iv_header, tag_header, plaintext_header);
+    }
+    catch (...)
+    {
+        LOG(ERROR, "Decryption of header failed");
+        return false;
+    }
+    if (plaintext_header.size() != 4)
+    {
+        LOG(ERROR, "Decrypted header wrong length: %zu bytes", plaintext_header.size());
+        return false;
+    }
+    uint32_t body_message_len;
+    std::memcpy(&body_message_len, plaintext_header.data(), sizeof(body_message_len));
+    body_message_len = ntohl(body_message_len);
+
+    byte_vec msg_body;
+    if (!recv_bytes(sockfd, msg_body, body_message_len))
+    {
+        LOG(ERROR, "recv_message failed for body");
+        return false;
+    }
+
+    if (msg_body.size() < (12 + 16))
     {
         // minimum size: IV + tag (ciphertext could be empty)
-        LOG(WARN, "Received message too short: %zu bytes", msg.size());
+        LOG(WARN, "Received message too short: %zu bytes", msg_body.size());
         return false;
     }
     size_t offset = 0;
 
     // Extract IV (12 bytes)
-    byte_vec iv(msg.data() + offset, msg.data() + offset + 12);
+    byte_vec iv(msg_body.data() + offset, msg_body.data() + offset + 12);
     offset += 12;
 
     // Extract counter from last 8 bytes of IV
-    uint64_t counter_be = 0;
+    counter_be = 0;
     std::memcpy(&counter_be, iv.data() + 4, sizeof(uint64_t));
 
-    uint64_t counter = be64toh(counter_be);
+    counter = be64toh(counter_be);
 
     // Replay protection: must be strictly increasing
     if (counter <= last_received_counter)
@@ -135,14 +230,15 @@ bool recv_secure_message(int sockfd,
             counter, last_received_counter);
         return false;
     }
+    last_received_counter = counter;
 
     // Extract ciphertext
-    size_t ciphertext_len = msg.size() - offset - 16;
-    byte_vec ciphertext(msg.data() + offset, msg.data() + offset + ciphertext_len);
+    size_t ciphertext_len = msg_body.size() - offset - 16;
+    byte_vec ciphertext(msg_body.data() + offset, msg_body.data() + offset + ciphertext_len);
     offset += ciphertext_len;
 
     // Extract tag (16 bytes)
-    byte_vec tag(msg.data() + offset, msg.data() + offset + 16);
+    byte_vec tag(msg_body.data() + offset, msg_body.data() + offset + 16);
 
     LOG(DEBUG, "Extracted IV, ciphertext and tag from received message");
     LOG(DEBUG, "IV: %s", byte_vec_to_hex(iv).c_str());
@@ -159,7 +255,6 @@ bool recv_secure_message(int sockfd,
         LOG(ERROR, "Decryption failed");
         return false;
     }
-    last_received_counter = counter;
     return true;
 }
 

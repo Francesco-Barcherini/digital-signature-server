@@ -1,13 +1,12 @@
 #include "protocol.h"
 
-
-int sockfd;
-byte_vec shared_key(32); // Use a fixed AES key for now (should be negotiated or derived per session)
-uint64_t counter = 0;
+thread_local int sockfd;
+thread_local byte_vec shared_key(32);
+thread_local uint64_t counter = 0;
 void server_init_connection(int conn_fd)
 {
     sockfd = conn_fd;
-    
+
     LOG(INFO, "Client handler started for fd=%d", sockfd);
 
     string path_to_private_key = DATA_PATH + "/server/server_priv.pem"; // Path to your PEM file containing the private key
@@ -39,5 +38,7 @@ void recv_message(string &msg)
 
 void recv_message(byte_vec &msg)
 {
-    recv_secure_message(sockfd, shared_key, counter, msg);
+    if (!recv_secure_message(sockfd, shared_key, counter, msg)){
+        error("Connection closed");
+    }
 }
