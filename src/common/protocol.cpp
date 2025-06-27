@@ -87,9 +87,16 @@ void send_secure_message(int sockfd,
     if (old_counter > message_counter)
         error("Message counter overflow");
 
-    // Encrypt plaintext
+
+    // Pad plaintext to 64 bytes with pkcs7 padding
+    size_t padding_len = 64 - (plaintext.size() % 64);
+
+    byte_vec padded_plaintext = plaintext;
+    padded_plaintext.insert(padded_plaintext.end(), padding_len, padding_len);
+
+    // Encrypt padded plaintext
     byte_vec ciphertext, tag;
-    aes256gcm_encrypt(plaintext, key, iv, ciphertext, tag);
+    aes256gcm_encrypt(padded_plaintext, key, iv, ciphertext, tag);
 
     // Build message: [12-byte IV][ciphertext][16-byte tag]
     byte_vec msg;
@@ -160,21 +167,31 @@ bool recv_secure_message(int sockfd,
     // Extract tag (16 bytes)
     byte_vec tag(msg.data() + offset, msg.data() + offset + 16);
 
-    LOG(DEBUG, "Extracted IV, ciphertext and tag from received message");
-    LOG(DEBUG, "IV: %s", byte_vec_to_hex(iv).c_str());
-    LOG(DEBUG, "Ciphertext: %s", byte_vec_to_hex(ciphertext).c_str());
-    LOG(DEBUG, "Tag: %s", byte_vec_to_hex(tag).c_str());
-    LOG(DEBUG, "Message counter: %llu", counter);
-
+    byte_vec padded_plaintext;
     try
     {
-        aes256gcm_decrypt(ciphertext, key, iv, tag, plaintext);
+        aes256gcm_decrypt(ciphertext, key, iv, tag, padded_plaintext);
     }
     catch (...)
     {
         LOG(ERROR, "Decryption failed");
         return false;
     }
+
+    // Remove PKCS7 padding
+    size_t padding_len = padded_plaintext.back();
+
+    plaintext.resize(padded_plaintext.size() - padding_len);
+    std::memcpy(plaintext.data(), padded_plaintext.data(), plaintext.size());
+
+    LOG(DEBUG, "Extracted IV, ciphertext and tag from received message");
+    LOG(DEBUG, "IV: %s", byte_vec_to_hex(iv).c_str());
+    LOG(DEBUG, "Ciphertext: %s", byte_vec_to_hex(ciphertext).c_str());
+    LOG(DEBUG, "Tag: %s", byte_vec_to_hex(tag).c_str());
+    LOG(DEBUG, "Message counter: %llu", counter);
+    LOG(DEBUG, "Padded Plaintext: %s", byte_vec_to_hex(padded_plaintext).c_str());
+    LOG(DEBUG, "Plaintext: %s", byte_vec_to_hex(plaintext).c_str());
+
     return true;
 }
 
