@@ -76,9 +76,6 @@ void send_secure_message(int sockfd,
                          const byte_vec &key,
                          uint64_t &message_counter)
 {
-    // Increment message counter
-    // TODO: check counter overflow
-    // Derive IV from counter: first 4 bytes zero, last 8 bytes = counter (big-endian)
     byte_vec iv_header(12, 0);
     byte_vec iv_body(12, 0);
     uint64_t counter_be, old_counter;
@@ -113,7 +110,6 @@ void send_secure_message(int sockfd,
     aes256gcm_encrypt(plaintext_header, key, iv_header, ciphertext_header, tag_header);
 
     // Send header
-
     byte_vec msg_header;
     msg_header.resize(iv_header.size() + ciphertext_header.size() + tag_header.size());
     size_t offset = 0;
