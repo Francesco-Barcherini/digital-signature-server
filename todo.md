@@ -11,4 +11,5 @@
 - [ ] Protocollo con payload unico (ave)
 - [ ] IV aumenta esattamente di uno (ave)
 - [ ] Inviare lunghezza cifrato in chiaro (ave)
+- [ ] Aggiungere padding al messaggio?
 - [ ] Testare bene tutto
