@@ -1,4 +1,5 @@
 #include "EmployeeDB.h"
+#include <filesystem>
 
 bool EmployeeDB::registerEmployee(const string& username, const string& password) {
     // Take the mutex lock on employees as early as possible to protect the whole operation
@@ -259,6 +260,19 @@ bool EmployeeDB::createKeys(const string& username) {
         error("Failed to generate RSA key pair for employee");
     }
 
+
+    // Create the directory for the employee if it doesn't exist
+    // Ensure the directory exists
+    string dir = "data/server/" + username;
+    if (!std::filesystem::exists(dir)) {
+        try {
+            std::filesystem::create_directories(dir);
+            LOG(INFO, "Created directory %s", dir.c_str());
+        } catch (const std::filesystem::filesystem_error& e) {
+            LOG(ERROR, "Failed to create directory %s: %s", dir.c_str(), e.what());
+            error("Failed to create directory for key storage");
+        }
+    }
 
     // Save the public key into data/server/<username>/pub_key.pem
     string pub_file = "data/server/" + username + "/pub_key.pem";

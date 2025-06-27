@@ -4,3 +4,6 @@ out/
 *.o
 
 build/
+
+data/server/*
+!data/server/server_priv.pem

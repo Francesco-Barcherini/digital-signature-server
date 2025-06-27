@@ -13,6 +13,13 @@ bool isLogged() {
     return !logged_username.empty();
 }
 
+/*
+client:
+    CreateKeys
+    password
+server:
+    
+*/
 void cmd_CreateKeys() {
     if (!isLogged()) {
         cout << "You must be logged in to create keys." << endl;
