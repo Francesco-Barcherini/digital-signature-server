@@ -81,7 +81,9 @@ void send_secure_message(int sockfd,
     // Derive IV from counter: first 4 bytes zero, last 8 bytes = counter (big-endian)
     byte_vec iv_header(12, 0);
     byte_vec iv_body(12, 0);
-    uint64_t counter_be;
+    uint64_t counter_be, old_counter;
+
+    old_counter = message_counter;
 
     // Set IV for header
     counter_be = htobe64(++message_counter);
@@ -90,6 +92,9 @@ void send_secure_message(int sockfd,
     // Set IV for body
     counter_be = htobe64(++message_counter);
     std::memcpy(iv_body.data() + 4, &counter_be, sizeof(uint64_t));
+
+    if (old_counter > message_counter)
+        error("Message counter overflow");
 
     // Encrypt body
     byte_vec ciphertext_body, tag_body;
