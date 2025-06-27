@@ -4,8 +4,6 @@
 
 #include "protocol.h"
 
-// TODO
-
 bool send_all(int sockfd, const unsigned char *data, size_t len)
 {
     LOG(DEBUG, "Sending %zu bytes", len);
@@ -97,6 +95,7 @@ void send_secure_message(int sockfd,
     // Encrypt padded plaintext
     byte_vec ciphertext, tag;
     aes256gcm_encrypt(padded_plaintext, key, iv, ciphertext, tag);
+    memzero(padded_plaintext); // Clear padded plaintext from memory
 
     // Build message: [12-byte IV][ciphertext][16-byte tag]
     byte_vec msg;
@@ -151,12 +150,13 @@ bool recv_secure_message(int sockfd,
     uint64_t counter = be64toh(counter_be);
 
     // Replay protection: must be the next one
-    if (counter + 1 == last_received_counter)
+    if (counter != last_received_counter + 1)
     {
         LOG(WARN, "Received message with non-increasing counter: %llu <= %llu",
             counter, last_received_counter);
         return false;
     }
+    last_received_counter = counter;
     counter++; 
 
     // Extract ciphertext
@@ -175,6 +175,7 @@ bool recv_secure_message(int sockfd,
     catch (...)
     {
         LOG(ERROR, "Decryption failed");
+        memzero(padded_plaintext);
         return false;
     }
 
@@ -191,6 +192,8 @@ bool recv_secure_message(int sockfd,
     LOG(DEBUG, "Message counter: %llu", counter);
     LOG(DEBUG, "Padded Plaintext: %s", byte_vec_to_hex(padded_plaintext).c_str());
     LOG(DEBUG, "Plaintext: %s", byte_vec_to_hex(plaintext).c_str());
+
+    memzero(padded_plaintext); // Clear padded plaintext from memory
 
     return true;
 }
@@ -239,11 +242,15 @@ bool init_secure_conversation_client(int sockfd,
 
     if (!derive_shared_secret_and_key(my_dh_keypair, server_dh_pubkey, shared_secret, shared_key))
     {
+        memzero(shared_secret); // Clear shared secret from memory
+        EVP_PKEY_free(my_dh_keypair);
         EVP_PKEY_free(server_dh_pubkey);
         error("Shared key derivation failed");
     }
     LOG(DEBUG, "Derived shared secret successfully");
 
+    memzero(shared_secret); // Clear shared secret from memory
+    EVP_PKEY_free(my_dh_keypair);
     EVP_PKEY_free(server_dh_pubkey);
     return true;
 }
@@ -286,10 +293,14 @@ bool init_secure_conversation_server(int sockfd,
     byte_vec shared_secret;
     if (!derive_shared_secret_and_key(my_dh_keypair, client_dh_pubkey, shared_secret, shared_key))
     {
+        memzero(shared_secret); // Clear shared secret from memory
+        EVP_PKEY_free(my_dh_keypair);
         EVP_PKEY_free(client_dh_pubkey);
         error("Shared key derivation failed");
     }
 
+    memzero(shared_secret);
+    EVP_PKEY_free(my_dh_keypair);
     EVP_PKEY_free(client_dh_pubkey);
     return true;
 }

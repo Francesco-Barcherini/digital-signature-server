@@ -30,6 +30,11 @@ byte_vec shared_key(32);
 uint64_t counter = 0;
 int sockfd;
 
+byte_vec &get_shared_key()
+{
+    return shared_key;
+}
+
 void client_init_connection()
 {
     sockfd = connect_to_server("127.0.0.1", 1234);
@@ -58,6 +63,7 @@ void send_message(const string &msg)
     byte_vec msg_bytes(msg.begin(), msg.end());
     msg_bytes.push_back('\0'); // Null-terminate the string for safety
     send_message(msg_bytes);
+    memzero(msg_bytes);
 }
 
 void send_message(const byte_vec &msg)
@@ -70,6 +76,7 @@ void recv_message(string &msg)
     byte_vec msg_bytes;
     recv_message(msg_bytes);
     msg = string(msg_bytes.begin(), msg_bytes.end()).c_str();
+    memzero(msg_bytes);
 }
 
 void recv_message(byte_vec &msg)

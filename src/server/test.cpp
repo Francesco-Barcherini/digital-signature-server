@@ -51,6 +51,8 @@ void testSign()
         LOG(INFO, "Signature verification failed after modification (expected)");
     }
 
+    EVP_PKEY_free(private_key);
+    EVP_PKEY_free(public_key);
 }
 
 

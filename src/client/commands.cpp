@@ -52,6 +52,9 @@ void cmd_CreateKeys()
     send_message(message);
     LOG(INFO, "Sent password to server");
 
+    memzero(password);
+    memzero(message);
+
     // Receive response from server
     message.clear();
     recv_message(message);
@@ -86,6 +89,7 @@ bool verifySignature(const string &documentPath, const byte_vec &signature)
     // verify signature
     bool valid = verifyRsaSha256(doc_content, signature, pubkey);
     EVP_PKEY_free(pubkey);
+    memzero(doc_content);
 
     if (!valid)
     {
@@ -175,6 +179,7 @@ void cmd_SignDoc()
     message.push_back('\0'); // Null-terminate the document content
     send_message(message);
     LOG(INFO, "Sent document content to server");
+    memzero(doc_content);
 
     // send private key password
     message.clear();
@@ -182,6 +187,8 @@ void cmd_SignDoc()
     message.push_back('\0'); // Null-terminate the password
     send_message(message);
     LOG(INFO, "Sent private key password to server");
+    memzero(privkey_password);
+    memzero(message);
 
     // Receive response from server
     message.clear();
@@ -315,6 +322,8 @@ bool change_password()
     byte_vec message(new_password.begin(), new_password.end());
     message.push_back('\0'); // Null-terminate the password
     send_message(message);
+    memzero(new_password);
+    memzero(message);
 
     // Receive response from server
     message.clear();
@@ -383,6 +392,8 @@ void cmd_Login()
     message.push_back('\0'); // Null-terminate the password
     send_message(message);
     LOG(INFO, "Sent password to server");
+    memzero(password);
+    memzero(message);
 
     // Receive response from server
     message.clear();

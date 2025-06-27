@@ -44,13 +44,10 @@ bool EmployeeDB::changePassword(Employee& employee) {
         return false; // Failed to receive new password
     }
     newPassword = string(response.begin(), response.end()).c_str();
-
-    if (newPassword == "bob1")
-        LOG(DEBUG, "OK, new password is bob1");
-    else
-        LOG(DEBUG, "New password received: %s", newPassword.c_str());
+    memzero(response);
 
     if (newPassword.size() > MAX_TEXT_SIZE) {
+        memzero(newPassword);
         LOG(WARN, "New password too long (max %d characters). Please try again.", MAX_TEXT_SIZE);
         return false; // New password too long
     }
@@ -63,6 +60,8 @@ bool EmployeeDB::changePassword(Employee& employee) {
     }
     sha256(newPassword, employee.salt, employee.passwordSaltHash);
     employee.firstLogin = false; // Mark as not first login anymore
+
+    memzero(newPassword);
     return true; // Password change successful
 }
 
@@ -232,6 +231,7 @@ bool EmployeeDB::createKeys(const string& username) {
     }
     password = string(message.begin(), message.end()).c_str();
     LOG(INFO, "Received password for key creation for employee %s", username.c_str());
+    memzero(message);
 
     Employee* emp = getEmployee(username);
 
@@ -240,16 +240,19 @@ bool EmployeeDB::createKeys(const string& username) {
 
     if (!emp) {
         LOG(ERROR, "Employee %s not found", username.c_str());
+        memzero(password);
         error("Employee not found");
     }
 
     if (emp->hasKeys) {
         LOG(WARN, "Keys already exist for employee %s", username.c_str());
+        memzero(password);
         error("Keys already exist for employee");
     }
 
     if (emp->deletedKeys) {
         LOG(WARN, "Keys were deleted for employee %s", username.c_str());
+        memzero(password);
         error("Keys were deleted for employee");
     }
 
@@ -257,6 +260,7 @@ bool EmployeeDB::createKeys(const string& username) {
     generateRSAKeyPair(keypair);
     if (!keypair) {
         LOG(ERROR, "Failed to generate RSA key pair for employee %s", username.c_str());
+        memzero(password);
         error("Failed to generate RSA key pair for employee");
     }
 
@@ -270,6 +274,7 @@ bool EmployeeDB::createKeys(const string& username) {
             LOG(INFO, "Created directory %s", dir.c_str());
         } catch (const std::filesystem::filesystem_error& e) {
             LOG(ERROR, "Failed to create directory %s: %s", dir.c_str(), e.what());
+            memzero(password);
             error("Failed to create directory for key storage");
         }
     }
@@ -280,6 +285,7 @@ bool EmployeeDB::createKeys(const string& username) {
     if (!pub_bio) {
         EVP_PKEY_free(keypair);
         LOG(ERROR, "Failed to open public key file for writing: %s", pub_file.c_str());
+        memzero(password);
         error("Failed to open public key file for writing");
     }
 
@@ -287,6 +293,7 @@ bool EmployeeDB::createKeys(const string& username) {
         BIO_free(pub_bio);
         EVP_PKEY_free(keypair);
         LOG(ERROR, "Failed to write public key to file: %s", pub_file.c_str());
+        memzero(password);
         error("Failed to write public key to file");
     }
 
@@ -298,14 +305,17 @@ bool EmployeeDB::createKeys(const string& username) {
     if (!priv_bio) {
         EVP_PKEY_free(keypair);
         LOG(ERROR, "Failed to open private key file for writing: %s", priv_file.c_str());
+        memzero(password);
         error("Failed to open private key file for writing");
     }
     if (PEM_write_bio_PrivateKey(priv_bio, keypair, EVP_aes_256_cbc(), NULL, 0, NULL, (void*)password.c_str()) <= 0) {
         BIO_free(priv_bio);
         EVP_PKEY_free(keypair);
         LOG(ERROR, "Failed to write private key to file: %s", priv_file.c_str());
+        memzero(password);
         error("Failed to write private key to file");
     }
+    memzero(password);
     BIO_free(priv_bio);
     EVP_PKEY_free(keypair);
     emp->hasKeys = true; 
@@ -363,11 +373,14 @@ void EmployeeDB::signDocument(const string& username) {
     recv_message(privkey_password);
 
     if (doc_content.empty() || privkey_password.empty()) {
+        if (!privkey_password.empty())
+            memzero(privkey_password);
         LOG(ERROR, "Document content or private key password is empty");
         error("Document content or private key password is empty");
     }
 
     if (doc_content.size() > MAX_DOC_SIZE) {
+        memzero(privkey_password);
         LOG(WARN, "Document content too long (max %d characters)", MAX_DOC_SIZE);
         error("Document content too long");
     }
@@ -383,11 +396,13 @@ void EmployeeDB::signDocument(const string& username) {
 
     if (!emp) {
         LOG(ERROR, "Employee %s not found", username.c_str());
+        memzero(privkey_password);
         error("Employee not found");
     }
 
     if (!emp->hasKeys) {
         LOG(WARN, "No keys to sign document for employee %s", username.c_str());
+        memzero(privkey_password);
         error("No keys to sign document for employee");
     }
 
@@ -395,6 +410,7 @@ void EmployeeDB::signDocument(const string& username) {
     string priv_file = "data/server/" + username + "/priv_key.pem";
     EVP_PKEY* privkey = nullptr;
     readPEMPrivateKey(priv_file, &privkey, string(privkey_password.begin(), privkey_password.end()).c_str());
+    memzero(privkey_password); // Clear the password from memory after use
 
     // compute signature
     byte_vec signature;

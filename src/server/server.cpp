@@ -36,6 +36,7 @@ void connection_handler(int fd)
     byte_vec message;
     recv_message(message);
     LOG(INFO, "Received message from client: %s", string(message.begin(), message.end()).c_str());
+    memzero(message);
 
     string loggedUser = "";
     while (running)
@@ -83,6 +84,7 @@ void start_server(uint16_t port)
     }
 
     LOG(INFO, "Server listening on port %d", port);
+    cout << "Server started on port " << port << endl;
 
     while (true)
     {

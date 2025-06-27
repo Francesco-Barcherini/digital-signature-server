@@ -22,8 +22,11 @@ using namespace std;
 
 using byte_vec = std::vector<unsigned char>;
 
+byte_vec& get_shared_key();
+
 void error(const char *msg)
 {
+    memzero(get_shared_key());
     throw std::runtime_error(msg);
 }
 
@@ -530,3 +533,16 @@ void genRSAKeyPair(EVP_PKEY **pubkey, EVP_PKEY **privkey)
     EVP_PKEY_CTX_free(ctx);
 }
 
+void __attribute__((optimize("O0"))) memzero(string &str)
+{
+    if (str.empty())
+        return;
+    fill(str.begin(), str.end(), 0);
+}
+
+void __attribute__((optimize("O0"))) memzero(byte_vec &data)
+{   
+    if (data.empty())
+        return;
+    fill(data.begin(), data.end(), 0);
+}

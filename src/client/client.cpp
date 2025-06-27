@@ -20,6 +20,8 @@ int main(int argc, char *argv[])
     message.push_back('\0'); // Now it is null-terminated
 
     send_message(message);
+    memzero(msg);
+    memzero(message);
 
     cmd_Login();
     while(1)

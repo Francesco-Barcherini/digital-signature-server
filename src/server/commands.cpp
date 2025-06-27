@@ -77,7 +77,6 @@ void cmd_GetPublicKey()
     try
     {
         string PEM_public_key = employeeDB.getPublicKey(username_str);
-        cout << string(PEM_public_key.begin(), PEM_public_key.end()).c_str() << endl;
         send_message(PEM_public_key);
         LOG(INFO, "Sent public key for user %s", username_str.c_str());
     }
@@ -114,6 +113,8 @@ void cmd_Login(string &loggedUser)
 
     if (username.empty() || password.empty())
     {
+        if (!password.empty())
+            memzero(password);
         LOG(WARN, "Username or password is empty");
         send_message(string("Username or password cannot be empty"));
         return;
@@ -121,6 +122,7 @@ void cmd_Login(string &loggedUser)
 
     if (username.size() > MAX_TEXT_SIZE || password.size() > MAX_TEXT_SIZE)
     {
+        memzero(password);
         LOG(WARN, "Username or password too long");
         send_message("Username or password too long (max " + to_string(MAX_TEXT_SIZE) + " characters)");
         return;
@@ -129,10 +131,14 @@ void cmd_Login(string &loggedUser)
     string username_str = string(username.begin(), username.end()).c_str();
     string password_str = string(password.begin(), password.end()).c_str();
 
+    memzero(password);
+
     if (employeeDB.loginEmployee(username_str, password_str))
     {
         loggedUser = username_str; // Store the username for the session
     }
+
+    memzero(password_str);
 }
 
 void cmd_Exit()
