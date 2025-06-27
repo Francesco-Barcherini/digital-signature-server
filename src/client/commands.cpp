@@ -25,11 +25,13 @@ void cmd_CreateKeys() {
         cout << "You must be logged in to create keys." << endl;
         return;
     }
+
     // send command and password
-    byte_vec message(command.begin(), command.end());
+    string cmd = "CreateKeys";
+    byte_vec message(cmd.begin(), cmd.end());
     message.push_back('\0'); // Null-terminate the command
     send_message(message);
-    LOG(INFO, "Sent command %s to server", string(command.begin(), command.end()).c_str());
+    LOG(INFO, "Sent command %s to server", string(cmd.begin(), cmd.end()).c_str());
 
     // send password
     string password;
@@ -91,8 +93,8 @@ bool verifySignature(const string& documentPath, const byte_vec& signature) {
 /*
 client:
     "SignDoc"
-    document
     password
+    document
 server:
     signature or "SignDoc failed" 
 */
@@ -147,10 +149,11 @@ void cmd_SignDoc() {
     }
 
     // send command
-    byte_vec message(command.begin(), command.end());
+    string cmd = "SignDoc";
+    byte_vec message(cmd.begin(), cmd.end());
     message.push_back('\0'); // Null-terminate the command
     send_message(message);
-    LOG(INFO, "Sent command %s to server", string(command.begin(), command.end()).c_str());
+    LOG(INFO, "Sent command %s to server", string(cmd.begin(), cmd.end()).c_str());
 
     // send document content
     message.clear();
@@ -209,10 +212,11 @@ void cmd_GetPublicKey() {
     }
 
     // send command and username
-    byte_vec message(command.begin(), command.end());
+    string cmd = "GetPublicKey";
+    byte_vec message(cmd.begin(), cmd.end());
     message.push_back('\0'); // Null-terminate the command
     send_message(message);
-    LOG(INFO, "Sent command %s to server", string(command.begin(), command.end()).c_str());
+    LOG(INFO, "Sent command %s to server", string(cmd.begin(), cmd.end()).c_str());
 
     // Send username
     message.clear();
@@ -249,10 +253,11 @@ void cmd_DeleteKeys() {
     }
 
     // send command
-    byte_vec message(command.begin(), command.end());   
+    string cmd = "DeleteKeys";
+    byte_vec message(cmd.begin(), cmd.end());   
     message.push_back('\0'); // Null-terminate the command
     send_message(message);
-    LOG(INFO, "Sent command %s to server", string(command.begin(), command.end()).c_str());
+    LOG(INFO, "Sent command %s to server", string(cmd.begin(), cmd.end()).c_str());
 
     // Receive response from server
     message.clear();
@@ -333,10 +338,11 @@ void cmd_Login() {
     }
 
     // send cmd, username, password
-    byte_vec message(command.begin(), command.end());
+    string cmd = "Login";
+    byte_vec message(cmd.begin(), cmd.end());
     message.push_back('\0'); // Null-terminate the command
     send_message(message);
-    LOG(INFO, "Sent command %s to server", string(command.begin(), command.end()).c_str());
+    LOG(INFO, "Sent command %s to server", string(cmd.begin(), cmd.end()).c_str());
 
     message.clear();
     message.insert(message.end(), username.begin(), username.end());
@@ -376,10 +382,11 @@ void cmd_Login() {
 
 void cmd_Exit() {
     // send exit command and close the connection
-    byte_vec message(command.begin(), command.end());
+    string cmd = "Exit";
+    byte_vec message(cmd.begin(), cmd.end());
     message.push_back('\0'); // Null-terminate the command
     send_message(message);
-    LOG(INFO, "Sent %s command to server", string(command.begin(), command.end()).c_str());
+    LOG(INFO, "Sent %s command to server", string(cmd.begin(), cmd.end()).c_str());
 
     cout << "Exiting the application. Goodbye!" << endl;
     exit(0);

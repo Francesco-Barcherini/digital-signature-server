@@ -21,6 +21,7 @@ int main(int argc, char *argv[])
 
     send_message(message);
 
+    cmd_Login();
     while(1)
         operation();
 
