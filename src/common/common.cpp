@@ -356,7 +356,7 @@ bool verifyRsaSha256(const byte_vec &data, const byte_vec &signature, EVP_PKEY *
     return false;
 }
 
-logLevel log_level = DEBUG;
+logLevel log_level = WARN;
 
 // ANSI color codes for log levels
 static const char *level_colors[] = {
@@ -375,13 +375,13 @@ static const char *level_names[] = {
 
 void set_log_level(char* level)
 {
-    if (strcmp(level, "DEBUG") == 0)
+    if (strcmp(level, "debug") == 0)
         log_level = DEBUG;
-    else if (strcmp(level, "INFO") == 0)
+    else if (strcmp(level, "info") == 0)
         log_level = INFO;
-    else if (strcmp(level, "WARN") == 0)
+    else if (strcmp(level, "warn") == 0)
         log_level = WARN;
-    else if (strcmp(level, "ERROR") == 0)
+    else if (strcmp(level, "error") == 0)
         log_level = ERROR;
 }
 
