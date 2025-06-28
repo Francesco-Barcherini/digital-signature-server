@@ -103,7 +103,7 @@ void test_aes256gcm_encrypt_decrypt()
     byte_vec key(32);
     if (!RAND_bytes(key.data(), (int)key.size()))
     {
-        std::cerr << "Failed to generate random key\n";
+        cerr << "Failed to generate random key\n";
         return;
     }
 
@@ -123,8 +123,8 @@ void test_aes256gcm_encrypt_decrypt()
         else
             LOG(ERROR, "AES-256-GCM test failed: Decrypted text does NOT match plaintext");
     }
-    catch (const std::exception &e)
+    catch (const exception &e)
     {
-        std::cerr << "Error during AES-256-GCM test: " << e.what() << "\n";
+        cerr << "Error during AES-256-GCM test: " << e.what() << "\n";
     }
 }

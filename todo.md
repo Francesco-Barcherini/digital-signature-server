@@ -12,7 +12,9 @@
 - [x] Inviare lunghezza cifrato in chiaro (ave)
 - [x] Aggiungere padding al messaggio?
 - [ ] Testare bene tutto
-- [ ] Check openssl_API() != 1 e non <=0
-- [ ] Check API _ex rispetto a quelle usate nei lab
+- [x] Check openssl_API() != 1 e non <=0
+- [x] Check API _ex rispetto a quelle usate nei lab
 - [ ] Testare su valgrind (DecryptFinal_ex dà problemi)
-- [ ] RSA con PQ??
+- [x] RSA con PQ??
+- [x] Vedere lunghezza del messaggio (evitare overflow)
+- [ ] Fix Decrypt fail on tag

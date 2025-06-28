@@ -18,16 +18,12 @@
 
 #include <string>
 
-using namespace std;
-
-using byte_vec = std::vector<unsigned char>;
-
 byte_vec& get_shared_key();
 
 void error(const char *msg)
 {
     memzero(get_shared_key());
-    throw std::runtime_error(msg);
+    throw runtime_error(msg);
 }
 
 void genRandomBytes(byte_vec &data, size_t size)
@@ -39,10 +35,10 @@ void genRandomBytes(byte_vec &data, size_t size)
 
 string byte_vec_to_hex(const byte_vec &data)
 {
-    std::ostringstream oss;
+    ostringstream oss;
     for (unsigned char byte : data)
     {
-        oss << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
+        oss << hex << setw(2) << setfill('0') << (int)byte;
     }
     return oss.str();
 }
@@ -164,27 +160,20 @@ void aes256gcm_encrypt(const byte_vec &plaintext,
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
         error("Failed to create EVP_CIPHER_CTX");
-    // TODO: nei lab dice di usare EVP_EncryptInit senza _ex
-    // ma EVP_EncryptInit_ex è la versione corretta per AES-GCM (non deprecated)
-    if (EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL) != 1)
-        error("EVP_EncryptInit_ex failed");
 
-    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, (int)iv.size(), NULL) != 1)
-        error("EVP_CIPHER_CTX_ctrl set IV length failed");
-
-    if (EVP_EncryptInit_ex(ctx, NULL, NULL, key.data(), iv.data()) != 1)
-        error("EVP_EncryptInit_ex set key/iv failed");
+    if (EVP_EncryptInit(ctx, EVP_aes_256_gcm(), key.data(), iv.data()) != 1)
+        error("EVP_EncryptInit failed");
 
     int len = 0;
     ciphertext.resize(plaintext.size());
 
-    if (EVP_EncryptUpdate(ctx, ciphertext.data(), &len, plaintext.data(), (int)plaintext.size()) != 1)
+    if (EVP_EncryptUpdate(ctx, ciphertext.data(), &len, plaintext.data(), plaintext.size()) != 1)
         error("EVP_EncryptUpdate failed");
 
     int ciphertext_len = len;
 
-    if (EVP_EncryptFinal_ex(ctx, ciphertext.data() + len, &len) != 1)
-        error("EVP_EncryptFinal_ex failed");
+    if (EVP_EncryptFinal(ctx, ciphertext.data() + len, &len) != 1)
+        error("EVP_EncryptFinal failed");
 
     ciphertext_len += len;
     ciphertext.resize(ciphertext_len);
@@ -217,19 +206,13 @@ void aes256gcm_decrypt(const byte_vec &ciphertext,
     if (!ctx)
         error("Failed to create EVP_CIPHER_CTX");
 
-    if (EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL) != 1)
-        error("EVP_DecryptInit_ex failed");
-
-    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, (int)iv.size(), NULL) != 1)
-        error("EVP_CIPHER_CTX_ctrl set IV length failed");
-
-    if (EVP_DecryptInit_ex(ctx, NULL, NULL, key.data(), iv.data()) != 1)
-        error("EVP_DecryptInit_ex set key/iv failed");
+    if (EVP_DecryptInit(ctx, EVP_aes_256_gcm(), key.data(), iv.data()) != 1)
+        error("EVP_DecryptInit failed");
 
     int len = 0;
     plaintext.resize(ciphertext.size());
 
-    if (EVP_DecryptUpdate(ctx, plaintext.data(), &len, ciphertext.data(), (int)ciphertext.size()) != 1)
+    if (EVP_DecryptUpdate(ctx, plaintext.data(), &len, ciphertext.data(), ciphertext.size()) != 1)
         error("EVP_DecryptUpdate failed");
 
     int plaintext_len = len;
@@ -238,7 +221,7 @@ void aes256gcm_decrypt(const byte_vec &ciphertext,
         error("EVP_CIPHER_CTX_ctrl set tag failed");
 
     // Finalize decryption: returns 1 if tag verification succeeds
-    int ret = EVP_DecryptFinal_ex(ctx, plaintext.data() + len, &len);
+    int ret = EVP_DecryptFinal(ctx, plaintext.data() + len, &len);
     EVP_CIPHER_CTX_free(ctx);
 
     if (ret != 1)
@@ -404,8 +387,6 @@ void LOG(logLevel level, const char *format, ...)
     printf("\n");
     va_end(args);
 }
-
-// TODO usare due chiavi simmetriche??#include <openssl/kdf.h> // For HKDF
 
 bool derive_shared_secret_and_key(EVP_PKEY *my_privkey,
                                   EVP_PKEY *peer_pubkey,

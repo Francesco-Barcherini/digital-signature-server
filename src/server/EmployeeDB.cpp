@@ -89,23 +89,17 @@ bool EmployeeDB::loginEmployee(const string& username, const string& password) {
     if (emp.firstLogin) {
         if (changePassword(emp)) {
             string message = "Password changed successfully";
-            byte_vec response(message.begin(), message.end());
-            response.push_back('\0'); // Null-terminate the message
-            send_message(response);
+            send_message(message);
             LOG(INFO, "User %s changed password successfully", username.c_str());
             return true; // Password changed successfully
         }
         string message = "First login: change password failed";
-        byte_vec response(message.begin(), message.end());
-        response.push_back('\0'); // Null-terminate the message
-        send_message(response);
+        send_message(message);
         LOG(WARN, "User %s failed to change password on first login", username.c_str());
         return false; // First login password change failed
     } else {
         string message = "Login successful";
-        byte_vec response(message.begin(), message.end());
-        response.push_back('\0'); // Null-terminate the message
-        send_message(response);
+        send_message(message);
         LOG(INFO, "User %s logged in successfully", username.c_str());
         return true; // Login successful
     }
@@ -167,32 +161,6 @@ string EmployeeDB::getPublicKey(const string& username) {
 
     LOG(INFO, "Public key retrieved for employee %s", username.c_str());
     return PEM_public_key; // Return the public key as a string
-
-    // EVP_PKEY* pubkey = nullptr;
-    // BIO* bio = BIO_new_file(filename.c_str(), "r");
-    // if (!bio) {
-    //     LOG(ERROR, "Failed to open public key file: %s", filename.c_str());
-    //     throw runtime_error("Failed to open public key file: " + filename);
-    // }
-    // pubkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
-    // BIO_free(bio);
-    // if (!pubkey) {
-    //     LOG(ERROR, "Failed to read public key from file: %s", filename.c_str());
-    //     throw runtime_error("Failed to read public key from file: " + filename);
-    // }
-
-    // unsigned char* pubKey_buf = NULL;
-    // int pubKey_len = i2d_PUBKEY(pubkey, &pubKey_buf);
-    // if (pubKey_len <= 0) {
-    //     EVP_PKEY_free(pubkey);
-    //     LOG(ERROR, "Failed to convert public key to DER format");
-    //     throw runtime_error("Failed to convert public key to DER format");
-    // }
-    // byte_vec pubKey(pubKey_buf, pubKey_buf + pubKey_len);
-    // OPENSSL_free(pubKey_buf);
-    // EVP_PKEY_free(pubkey);
-    // LOG(INFO, "Public key retrieved for employee %s", username.c_str());
-    // return pubKey; // Return the public key as a byte vector
 }
 
 void EmployeeDB::generateRSAKeyPair(EVP_PKEY*& keypair) {
@@ -268,11 +236,11 @@ bool EmployeeDB::createKeys(const string& username) {
     // Create the directory for the employee if it doesn't exist
     // Ensure the directory exists
     string dir = "data/server/" + username;
-    if (!std::filesystem::exists(dir)) {
+    if (!filesystem::exists(dir)) {
         try {
-            std::filesystem::create_directories(dir);
+            filesystem::create_directories(dir);
             LOG(INFO, "Created directory %s", dir.c_str());
-        } catch (const std::filesystem::filesystem_error& e) {
+        } catch (const filesystem::filesystem_error& e) {
             LOG(ERROR, "Failed to create directory %s: %s", dir.c_str(), e.what());
             memzero(password);
             error("Failed to create directory for key storage");

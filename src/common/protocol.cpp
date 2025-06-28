@@ -20,16 +20,11 @@ bool send_all(int sockfd, const unsigned char *data, size_t len)
 
 bool send_message(int sockfd, const byte_vec &data)
 {
+    if (data.size() > UINT32_MAX)
+        error("Data size exceeds maximum limit");
     uint32_t len = htonl(data.size());
     if (!send_all(sockfd, reinterpret_cast<unsigned char *>(&len), sizeof(len)))
         return false;
-    if (!send_all(sockfd, data.data(), data.size()))
-        return false;
-    return true;
-}
-
-bool send_bytes(int sockfd, const byte_vec &data)
-{
     if (!send_all(sockfd, data.data(), data.size()))
         return false;
     return true;
@@ -63,12 +58,6 @@ bool recv_message(int sockfd, byte_vec &out)
     return recv_all(sockfd, out.data(), len);
 }
 
-bool recv_bytes(int sockfd, byte_vec &out, size_t len)
-{
-    out.resize(len);
-    return recv_all(sockfd, out.data(), len);
-}
-
 void send_secure_message(int sockfd,
                          const byte_vec &plaintext,
                          const byte_vec &key,
@@ -80,7 +69,7 @@ void send_secure_message(int sockfd,
     // Derive IV from counter: first 4 bytes zero, last 8 bytes = counter (big-endian)
     byte_vec iv(12, 0);
     uint64_t counter_be = htobe64(++message_counter);
-    std::memcpy(iv.data() + 4, &counter_be, sizeof(uint64_t));
+    memcpy(iv.data() + 4, &counter_be, sizeof(uint64_t));
 
     if (old_counter > message_counter)
         error("Message counter overflow");
@@ -102,13 +91,20 @@ void send_secure_message(int sockfd,
     msg.resize(iv.size() + ciphertext.size() + tag.size());
 
     size_t offset = 0;
-    std::memcpy(msg.data() + offset, iv.data(), iv.size());
+    memcpy(msg.data() + offset, iv.data(), iv.size());
     offset += iv.size();
 
-    std::memcpy(msg.data() + offset, ciphertext.data(), ciphertext.size());
+    memcpy(msg.data() + offset, ciphertext.data(), ciphertext.size());
     offset += ciphertext.size();
 
-    std::memcpy(msg.data() + offset, tag.data(), tag.size());
+    memcpy(msg.data() + offset, tag.data(), tag.size());
+
+    LOG(DEBUG, "IV, ciphertext and tag from sent message");
+    LOG(DEBUG, "IV: %s", byte_vec_to_hex(iv).c_str());
+    LOG(DEBUG, "Ciphertext: %s", byte_vec_to_hex(ciphertext).c_str());
+    LOG(DEBUG, "Tag: %s", byte_vec_to_hex(tag).c_str());
+    LOG(DEBUG, "Message counter: %llu", message_counter);
+    LOG(DEBUG, "Padded Plaintext: %s", byte_vec_to_hex(padded_plaintext).c_str());
 
     // Send with length prefix framing
     if (!send_message(sockfd, msg))
@@ -145,7 +141,7 @@ bool recv_secure_message(int sockfd,
 
     // Extract counter from last 8 bytes of IV
     uint64_t counter_be = 0;
-    std::memcpy(&counter_be, iv.data() + 4, sizeof(uint64_t));
+    memcpy(&counter_be, iv.data() + 4, sizeof(uint64_t));
 
     uint64_t counter = be64toh(counter_be);
 
@@ -156,8 +152,7 @@ bool recv_secure_message(int sockfd,
             counter, last_received_counter);
         return false;
     }
-    last_received_counter = counter;
-    counter++; 
+    last_received_counter++;
 
     // Extract ciphertext
     size_t ciphertext_len = msg.size() - offset - 16;
@@ -167,14 +162,21 @@ bool recv_secure_message(int sockfd,
     // Extract tag (16 bytes)
     byte_vec tag(msg.data() + offset, msg.data() + offset + 16);
 
+    LOG(DEBUG, "Extracted IV, ciphertext and tag from received message");
+    LOG(DEBUG, "IV: %s", byte_vec_to_hex(iv).c_str());
+    LOG(DEBUG, "Ciphertext: %s", byte_vec_to_hex(ciphertext).c_str());
+    LOG(DEBUG, "Tag: %s", byte_vec_to_hex(tag).c_str());
+    LOG(DEBUG, "Message counter: %llu", last_received_counter);
+
     byte_vec padded_plaintext;
     try
     {
         aes256gcm_decrypt(ciphertext, key, iv, tag, padded_plaintext);
     }
-    catch (...)
+    catch (exception &e)
     {
-        LOG(ERROR, "Decryption failed");
+
+        LOG(ERROR, "Decryption failed: %s", e.what());
         memzero(padded_plaintext);
         return false;
     }
@@ -183,13 +185,8 @@ bool recv_secure_message(int sockfd,
     size_t padding_len = padded_plaintext.back();
 
     plaintext.resize(padded_plaintext.size() - padding_len);
-    std::memcpy(plaintext.data(), padded_plaintext.data(), plaintext.size());
+    memcpy(plaintext.data(), padded_plaintext.data(), plaintext.size());
 
-    LOG(DEBUG, "Extracted IV, ciphertext and tag from received message");
-    LOG(DEBUG, "IV: %s", byte_vec_to_hex(iv).c_str());
-    LOG(DEBUG, "Ciphertext: %s", byte_vec_to_hex(ciphertext).c_str());
-    LOG(DEBUG, "Tag: %s", byte_vec_to_hex(tag).c_str());
-    LOG(DEBUG, "Message counter: %llu", counter);
     LOG(DEBUG, "Padded Plaintext: %s", byte_vec_to_hex(padded_plaintext).c_str());
     LOG(DEBUG, "Plaintext: %s", byte_vec_to_hex(plaintext).c_str());
 

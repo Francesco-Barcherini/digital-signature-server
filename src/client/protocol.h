@@ -4,7 +4,7 @@
 #include "../common/protocol.h"
 
 
-int connect_to_server(const std::string &host, uint16_t port);
+int connect_to_server(const string &host, uint16_t port);
 void client_init_connection();
 
 void close_connection();

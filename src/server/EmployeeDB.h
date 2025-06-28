@@ -29,5 +29,5 @@ public:
 
 private:
     unordered_map<string, Employee> employees;
-    mutable mutex dbMutex; // Mutex to protect access to the employee database
+    mutex dbMutex; // Mutex to protect access to the employee database
 };

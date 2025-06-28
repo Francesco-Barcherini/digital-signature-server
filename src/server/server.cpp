@@ -100,7 +100,7 @@ void start_server(uint16_t port)
         LOG(INFO, "Client connected: fd=%d", conn_fd);
 
         // Launch a thread to handle the client
-        std::thread(connection_handler, conn_fd).detach();
+        thread(connection_handler, conn_fd).detach();
     }
 
     close(server_fd);

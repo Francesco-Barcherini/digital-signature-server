@@ -9,11 +9,6 @@ string command;
 
 string logged_username = "";
 
-// bool isLogged()
-// {
-//     return !logged_username.empty();
-// }
-
 /*
 client:
     "CreateKeys"
@@ -23,12 +18,6 @@ server:
 */
 void cmd_CreateKeys()
 {
-    // if (!isLogged())
-    // {
-    //     cout << "You must be logged in to create keys." << endl;
-    //     return;
-    // }
-
     // send command and password
     string cmd = "CreateKeys";
     byte_vec message(cmd.begin(), cmd.end());
@@ -111,12 +100,6 @@ server:
 */
 void cmd_SignDoc()
 {
-    // if (!isLogged())
-    // {
-    //     cout << "You must be logged in to sign a document." << endl;
-    //     return;
-    // }
-
     // get document path
     string doc_name, doc_path;
     cout << "Enter document to sign: ";
@@ -221,12 +204,6 @@ server:
 */
 void cmd_GetPublicKey()
 {
-    // if (!isLogged())
-    // {
-    //     cout << "You must be logged in to get a public key." << endl;
-    //     return;
-    // }
-
     string username;
     cout << "Enter username to get public key: ";
     cin >> username;
@@ -274,12 +251,6 @@ server:
 */
 void cmd_DeleteKeys()
 {
-    // if (!isLogged())
-    // {
-    //     cout << "You must be logged in to delete keys." << endl;
-    //     return;
-    // }
-
     // send command
     string cmd = "DeleteKeys";
     byte_vec message(cmd.begin(), cmd.end());
@@ -448,7 +419,6 @@ void print_menu()
     cout << GREEN << "SignDoc" << RESET << " - Sign a document\n";
     cout << GREEN << "GetPublicKey" << RESET << " - Get a user's public key\n";
     cout << GREEN << "DeleteKeys" << RESET << " - Delete your key pair\n";
-    // cout << GREEN << "Login" << RESET << " - Login to the server\n";
     cout << GREEN << "Exit" << RESET << " - Exit the application\n";
     cout << endl;
 }
@@ -473,15 +443,6 @@ void operation()
         cmd_GetPublicKey();
     else if (command == "DeleteKeys")
         cmd_DeleteKeys();
-    // else if (command == "Login")
-    // {
-    //     if (!logged_username.empty())
-    //     {
-    //         cout << "You are already logged in as " << logged_username << endl;
-    //         return;
-    //     }
-    //     cmd_Login();
-    // }
     else if (command == "Exit")
         cmd_Exit();
     else

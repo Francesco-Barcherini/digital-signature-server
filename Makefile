@@ -22,6 +22,7 @@ CLIENT_BIN = $(OUT_DIR)/client
 .PHONY: all clean
 
 all: $(SERVER_BIN) $(CLIENT_BIN)
+	@echo "Build complete"
 
 # Ensure output directories exist
 $(OUT_DIR) $(BUILD_DIR):

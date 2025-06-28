@@ -1,7 +1,7 @@
 #include "protocol.h"
 #include <arpa/inet.h>
 
-int connect_to_server(const std::string &host, uint16_t port)
+int connect_to_server(const string &host, uint16_t port)
 {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
