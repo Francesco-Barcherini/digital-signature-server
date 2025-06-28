@@ -18,12 +18,14 @@
 
 #include <string>
 
-byte_vec& get_shared_key();
-
 void error(const char *msg)
 {
-    memzero(get_shared_key());
     throw runtime_error(msg);
+}
+
+void cmd_error(const char *msg)
+{
+    throw logic_error(msg);
 }
 
 void genRandomBytes(byte_vec &data, size_t size)
@@ -242,7 +244,7 @@ void readPEMPrivateKey(string filename, EVP_PKEY **privkey, string passphrase)
     fclose(file);
 
     if (!*privkey)
-        error("Failed to read private key from PEM file");
+        cmd_error("Failed to read private key from PEM file");
 
     return;
 }
@@ -257,7 +259,7 @@ void readPEMPublicKey(string filename, EVP_PKEY **pubkey)
     fclose(file);
 
     if (!*pubkey)
-        error("Failed to read public key from PEM file");
+        cmd_error("Failed to read public key from PEM file");
 
     return;
 }

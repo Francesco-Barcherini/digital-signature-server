@@ -3,6 +3,8 @@
 #include "../common/common.h"
 #include "../common/protocol.h"
 
+#include "commands.h"
+
 
 extern thread_local int sockfd;
 

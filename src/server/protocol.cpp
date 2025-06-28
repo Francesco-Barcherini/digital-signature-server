@@ -4,9 +4,12 @@ thread_local int sockfd;
 thread_local byte_vec shared_key(32);
 thread_local uint64_t counter = 0;
 
-byte_vec &get_shared_key()
+void close_connection()
 {
-    return shared_key;
+    running = false;
+    if (sockfd >= 0)
+        close(sockfd);
+    memzero(shared_key);
 }
 
 void server_init_connection(int conn_fd)

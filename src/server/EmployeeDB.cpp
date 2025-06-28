@@ -1,14 +1,14 @@
 #include "EmployeeDB.h"
 #include <filesystem>
 
-bool EmployeeDB::registerEmployee(const string& username, const string& password) {
+void EmployeeDB::registerEmployee(const string& username, const string& password) {
     // Take the mutex lock on employees as early as possible to protect the whole operation
     lock_guard<mutex> lock(dbMutex);
 
     // Check if the employee already exists
     if (employees.find(username) != employees.end()) {
         LOG(WARN, "Employee %s already exists", username.c_str());
-        return false; // Employee already exists
+        return; // Employee already exists
     }    
     
     // Create a new employee entry
@@ -27,7 +27,7 @@ bool EmployeeDB::registerEmployee(const string& username, const string& password
     // Store the new employee in the database
     employees[username] = newEmployee;
     
-    return true; // Registration successful
+    return; // Registration successful
 }
 
 bool EmployeeDB::changePassword(Employee& employee) {
@@ -122,17 +122,17 @@ Employee* EmployeeDB::getEmployee(const string& username) {
 string EmployeeDB::getPublicKey(const string& username) {
     Employee* emp = getEmployee(username);
     if (!emp)
-        throw runtime_error("Employee not found: " + username);
+        cmd_error("Employee not found");
 
     if (!emp->hasKeys)
-        throw runtime_error("Public key not set for employee: " + username);
+        cmd_error("Public key not set for employee");
 
     string filename = "data/server/" + username + "/pub_key.pem";
 
     FILE* file_PEM_pubkey = fopen(filename.c_str(), "r");
     if (!file_PEM_pubkey) {
         LOG(ERROR, "Failed to open public key file: %s", filename.c_str());
-        throw runtime_error("Failed to open public key file: " + filename);
+        cmd_error("Failed to open public key file");
     }
 
     string PEM_public_key;
@@ -146,14 +146,14 @@ string EmployeeDB::getPublicKey(const string& username) {
     if (!buffer) {
         fclose(file_PEM_pubkey);
         LOG(ERROR, "Failed to allocate memory for public key buffer");
-        throw runtime_error("Failed to allocate memory for public key buffer");
+        cmd_error("Failed to allocate memory for public key buffer");
     }
     PEM_public_key.resize(PEM_pubkey_size);
     int bytesRead = fread(buffer, 1, PEM_pubkey_size, file_PEM_pubkey);
     if (bytesRead < PEM_pubkey_size) {
         fclose(file_PEM_pubkey);
         LOG(ERROR, "Failed to read public key from file: %s", filename.c_str());
-        throw runtime_error("Failed to read public key from file: " + filename);
+        cmd_error("Failed to read public key from file");
     }
     fclose(file_PEM_pubkey);
 
@@ -166,36 +166,36 @@ string EmployeeDB::getPublicKey(const string& username) {
 void EmployeeDB::generateRSAKeyPair(EVP_PKEY*& keypair) {
     EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
     if (!ctx)
-        error("Failed to create RSA context");
+        cmd_error("Failed to create RSA context");
         
 
     if (EVP_PKEY_keygen_init(ctx) <= 0) {
         EVP_PKEY_CTX_free(ctx);
-        error("Failed to initialize RSA keygen");
+        cmd_error("Failed to initialize RSA keygen");
     }
 
 
     if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, 2048) <= 0) {
         EVP_PKEY_CTX_free(ctx);
-        error("Failed to set RSA key size");
+        cmd_error("Failed to set RSA key size");
     }
 
     if (EVP_PKEY_keygen(ctx, &keypair) <= 0) {
         EVP_PKEY_CTX_free(ctx);
-        error("Failed to generate RSA key pair");
+        cmd_error("Failed to generate RSA key pair");
     }
 
     EVP_PKEY_CTX_free(ctx);
 }
 
-bool EmployeeDB::createKeys(const string& username) {
+void EmployeeDB::createKeys(const string& username) {
     // recv the password
     string password;
     byte_vec message;
     recv_message(message);
     if (message.empty()) {
         LOG(ERROR, "Failed to receive password for key creation");
-        error("Failed to receive password for key creation");
+        cmd_error("Failed to receive password for key creation");
     }
     password = string(message.begin(), message.end()).c_str();
     LOG(INFO, "Received password for key creation for employee %s", username.c_str());
@@ -207,21 +207,21 @@ bool EmployeeDB::createKeys(const string& username) {
     lock_guard<mutex> lock(dbMutex);
 
     if (!emp) {
-        LOG(ERROR, "Employee %s not found", username.c_str());
+        LOG(WARN, "Employee %s not found", username.c_str());
         memzero(password);
-        error("Employee not found");
+        cmd_error("Employee not found");
     }
 
     if (emp->hasKeys) {
         LOG(WARN, "Keys already exist for employee %s", username.c_str());
         memzero(password);
-        error("Keys already exist for employee");
+        cmd_error("Keys already exist for employee");
     }
 
     if (emp->deletedKeys) {
         LOG(WARN, "Keys were deleted for employee %s", username.c_str());
         memzero(password);
-        error("Keys were deleted for employee");
+        cmd_error("Keys were deleted for employee");
     }
 
     EVP_PKEY* keypair = nullptr;
@@ -229,7 +229,7 @@ bool EmployeeDB::createKeys(const string& username) {
     if (!keypair) {
         LOG(ERROR, "Failed to generate RSA key pair for employee %s", username.c_str());
         memzero(password);
-        error("Failed to generate RSA key pair for employee");
+        cmd_error("Failed to generate RSA key pair for employee");
     }
 
 
@@ -239,11 +239,11 @@ bool EmployeeDB::createKeys(const string& username) {
     if (!filesystem::exists(dir)) {
         try {
             filesystem::create_directories(dir);
-            LOG(INFO, "Created directory %s", dir.c_str());
+            LOG(DEBUG, "Created directory %s", dir.c_str());
         } catch (const filesystem::filesystem_error& e) {
             LOG(ERROR, "Failed to create directory %s: %s", dir.c_str(), e.what());
             memzero(password);
-            error("Failed to create directory for key storage");
+            cmd_error("Failed to create directory for key storage");
         }
     }
 
@@ -254,7 +254,7 @@ bool EmployeeDB::createKeys(const string& username) {
         EVP_PKEY_free(keypair);
         LOG(ERROR, "Failed to open public key file for writing: %s", pub_file.c_str());
         memzero(password);
-        error("Failed to open public key file for writing");
+        cmd_error("Failed to open public key file for writing");
     }
 
     if (PEM_write_bio_PUBKEY(pub_bio, keypair) <= 0) {
@@ -262,7 +262,7 @@ bool EmployeeDB::createKeys(const string& username) {
         EVP_PKEY_free(keypair);
         LOG(ERROR, "Failed to write public key to file: %s", pub_file.c_str());
         memzero(password);
-        error("Failed to write public key to file");
+        cmd_error("Failed to write public key to file");
     }
 
     BIO_free(pub_bio);
@@ -274,20 +274,19 @@ bool EmployeeDB::createKeys(const string& username) {
         EVP_PKEY_free(keypair);
         LOG(ERROR, "Failed to open private key file for writing: %s", priv_file.c_str());
         memzero(password);
-        error("Failed to open private key file for writing");
+        cmd_error("Failed to open private key file for writing");
     }
     if (PEM_write_bio_PrivateKey(priv_bio, keypair, EVP_aes_256_cbc(), NULL, 0, NULL, (void*)password.c_str()) <= 0) {
         BIO_free(priv_bio);
         EVP_PKEY_free(keypair);
         LOG(ERROR, "Failed to write private key to file: %s", priv_file.c_str());
         memzero(password);
-        error("Failed to write private key to file");
+        cmd_error("Failed to write private key to file");
     }
     memzero(password);
     BIO_free(priv_bio);
     EVP_PKEY_free(keypair);
-    emp->hasKeys = true; 
-    return true; // Keys created successfully
+    emp->hasKeys = true;
 }
 
 void EmployeeDB::deleteKeys(const string& username) {    
@@ -297,18 +296,18 @@ void EmployeeDB::deleteKeys(const string& username) {
     lock_guard<mutex> lock(dbMutex);
 
     if (!emp) {
-        LOG(ERROR, "Employee %s not found", username.c_str());
-        error("Employee not found");
+        LOG(WARN, "Employee %s not found", username.c_str());
+        cmd_error("Employee not found");
     }
 
     if (!emp->hasKeys) {
         LOG(WARN, "No keys to delete for employee %s", username.c_str());
-        error("No keys to delete for employee");
+        cmd_error("No keys to delete for employee");
     }
 
     if (emp->deletedKeys) {
         LOG(WARN, "Keys were already deleted for employee %s", username.c_str());
-        error("Keys were already deleted for employee");
+        cmd_error("Keys were already deleted for employee");
     }
 
     // Delete the public and private key files
@@ -317,12 +316,12 @@ void EmployeeDB::deleteKeys(const string& username) {
 
     if (remove(pub_file.c_str()) != 0) {
         LOG(ERROR, "Failed to delete public key file: %s", pub_file.c_str());
-        error("Failed to delete public key file");
+        cmd_error("Failed to delete public key file");
     }
     
     if (remove(priv_file.c_str()) != 0) {
         LOG(ERROR, "Failed to delete private key file: %s", priv_file.c_str());
-        error("Failed to delete private key file");
+        cmd_error("Failed to delete private key file");
     }
 
     emp->hasKeys = false; // Mark keys as deleted
@@ -344,13 +343,13 @@ void EmployeeDB::signDocument(const string& username) {
         if (!privkey_password.empty())
             memzero(privkey_password);
         LOG(ERROR, "Document content or private key password is empty");
-        error("Document content or private key password is empty");
+        cmd_error("Document content or private key password is empty");
     }
 
     if (doc_content.size() > MAX_DOC_SIZE) {
         memzero(privkey_password);
         LOG(WARN, "Document content too long (max %d characters)", MAX_DOC_SIZE);
-        error("Document content too long");
+        cmd_error("Document content too long");
     }
 
     // remove null terminator if present
@@ -363,15 +362,15 @@ void EmployeeDB::signDocument(const string& username) {
     lock_guard<mutex> lock(dbMutex);
 
     if (!emp) {
-        LOG(ERROR, "Employee %s not found", username.c_str());
+        LOG(WARN, "Employee %s not found", username.c_str());
         memzero(privkey_password);
-        error("Employee not found");
+        cmd_error("Employee not found");
     }
 
     if (!emp->hasKeys) {
         LOG(WARN, "No keys to sign document for employee %s", username.c_str());
         memzero(privkey_password);
-        error("No keys to sign document for employee");
+        cmd_error("No keys to sign document for employee");
     }
 
     // retrieve user's private key from file
@@ -387,7 +386,7 @@ void EmployeeDB::signDocument(const string& username) {
 
     if (signature.empty()) {
         LOG(ERROR, "Failed to sign document for employee %s", username.c_str());
-        error("Failed to sign document");
+        cmd_error("Failed to sign document");
     }
 
     // Send the signature back to the client

@@ -16,19 +16,11 @@ void cmd_CreateKeys(const string &loggedUser)
 
     try
     {
-        bool success = employeeDB.createKeys(loggedUser);
-        if (success)
-        {
-            send_message("Keys created successfully");
-            LOG(INFO, "Keys created successfully for user %s", loggedUser.c_str());
-        }
-        else
-        {
-            send_message("Failed to create keys or keys already exist");
-            LOG(WARN, "Failed to create keys or keys already exist for user %s", loggedUser.c_str());
-        }
+        employeeDB.createKeys(loggedUser);
+        send_message("Keys created successfully");
+        LOG(INFO, "Keys created successfully for user %s", loggedUser.c_str());
     }
-    catch (const runtime_error &e)
+    catch (const logic_error &e)
     {
         LOG(ERROR, "Error creating keys for user %s: %s", loggedUser.c_str(), e.what());
         send_message(e.what());
@@ -45,7 +37,7 @@ void cmd_SignDoc(const string &loggedUser)
         employeeDB.signDocument(loggedUser);
         LOG(INFO, "Document signed successfully for user %s", loggedUser.c_str());
     }
-    catch (const runtime_error &e)
+    catch (const logic_error &e)
     {
         LOG(ERROR, "Error signing document for user %s: %s", loggedUser.c_str(), e.what());
         send_message("SignDoc failed: " + string(e.what()));
@@ -80,7 +72,7 @@ void cmd_GetPublicKey()
         send_message(PEM_public_key);
         LOG(INFO, "Sent public key for user %s", username_str.c_str());
     }
-    catch (const runtime_error &e)
+    catch (const logic_error &e)
     {
         LOG(ERROR, "Error retrieving public key for user %s: %s", username_str.c_str(), e.what());
         send_message(e.what());
@@ -97,7 +89,7 @@ void cmd_DeleteKeys(const string &loggedUser)
         send_message("Keys deleted successfully");
         LOG(INFO, "Keys deleted successfully for user %s", loggedUser.c_str());
     }
-    catch (const runtime_error &e)
+    catch (const logic_error &e)
     {
         LOG(ERROR, "Error deleting keys for user %s: %s", loggedUser.c_str(), e.what());
         send_message(e.what());

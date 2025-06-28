@@ -41,6 +41,9 @@ const int SALT_SIZE = 8;
 const int MAX_DOC_SIZE = 10 * 1024 * 1024; // 10 MB
 
 void error(const char *msg);
+void cmd_error(const char *msg);
+
+void close_connection();
 
 void genRandomBytes(byte_vec &data, size_t size);
 

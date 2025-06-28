@@ -12,20 +12,39 @@ int main(int argc, char *argv[])
     if (argc > 1)
         set_log_level(argv[1]);
     
+    try 
+    {
+        client_init_connection();
 
-    client_init_connection();
+        string msg = "Hello, Server!";
+        byte_vec message(msg.begin(), msg.end());
+        message.push_back('\0'); // Now it is null-terminated
 
-    string msg = "Hello, Server!";
-    byte_vec message(msg.begin(), msg.end());
-    message.push_back('\0'); // Now it is null-terminated
+        send_message(message);
+        memzero(msg);
+        memzero(message);
 
-    send_message(message);
-    memzero(msg);
-    memzero(message);
+        cmd_Login();
+        while(1)
+            operation();
+    }
+    catch (const runtime_error &e)
+    {
+        LOG(ERROR, "Runtime error: %s", e.what());
+        close_connection();
+    }
+    catch (const exception &e)
+    {
+        LOG(ERROR, "Exception: %s", e.what());
+        close_connection();
+    }
+    catch (...)
+    {
+        LOG(ERROR, "Unknown error occurred");
+        close_connection();
+    }
 
-    cmd_Login();
-    while(1)
-        operation();
+    close_connection();
 
     return 0;
 }

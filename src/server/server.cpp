@@ -31,25 +31,36 @@ void test()
 
 void connection_handler(int fd)
 {
-    server_init_connection(fd);
-
-    byte_vec message;
-    recv_message(message);
-    LOG(INFO, "Received message from client: %s", string(message.begin(), message.end()).c_str());
-    memzero(message);
-
-    string loggedUser = "";
-    while (running)
+    try 
     {
-        try
-        {
+        server_init_connection(fd);
+
+        byte_vec message;
+        recv_message(message);
+        LOG(INFO, "Received message from client: %s", string(message.begin(), message.end()).c_str());
+        memzero(message);
+
+        string loggedUser = "";
+        while (running)
             command_handler(loggedUser);
-        }
-        catch (...)
-        {
-            break;
-        }
     }
+    catch (const runtime_error &e)
+    {
+        close_connection();
+        LOG(ERROR, "Runtime error: %s", e.what());
+    }
+    catch (const exception &e)
+    {
+        close_connection();
+        LOG(ERROR, "Exception: %s", e.what());
+    }
+    catch (...)
+    {
+        close_connection();
+        LOG(ERROR, "Unknown error occurred");
+    }
+
+    close_connection();
 }
 
 void start_server(uint16_t port)

@@ -84,7 +84,6 @@ void send_secure_message(int sockfd,
     // Encrypt padded plaintext
     byte_vec ciphertext, tag;
     aes256gcm_encrypt(padded_plaintext, key, iv, ciphertext, tag);
-    memzero(padded_plaintext); // Clear padded plaintext from memory
 
     // Build message: [12-byte IV][ciphertext][16-byte tag]
     byte_vec msg;
@@ -106,6 +105,8 @@ void send_secure_message(int sockfd,
     LOG(DEBUG, "Message counter: %llu", message_counter);
     LOG(DEBUG, "Padded Plaintext: %s", byte_vec_to_hex(padded_plaintext).c_str());
 
+    memzero(padded_plaintext); // Clear padded plaintext from memory
+
     // Send with length prefix framing
     if (!send_message(sockfd, msg))
     {
@@ -123,7 +124,7 @@ bool recv_secure_message(int sockfd,
     byte_vec msg;
     if (!recv_message(sockfd, msg))
     {
-        LOG(ERROR, "recv_message failed");
+        LOG(ERROR, "recv_message failed: disconnected client");
         return false;
     }
 
@@ -199,7 +200,7 @@ bool init_secure_conversation_client(int sockfd,
                                      EVP_PKEY *server_rsa_pub,
                                      byte_vec &shared_key)
 {
-    LOG(DEBUG, "Initializing secure conversation with server");
+    LOG(INFO, "Initializing secure conversation with server");
     // 1. Generate client's DH key pair and send public key
     byte_vec my_pub_dh_msg;
     EVP_PKEY *my_dh_keypair = nullptr;
